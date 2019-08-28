@@ -5,6 +5,7 @@ class ApplicationController < ActionController::Base
   
   #ROOT della main_app
   def index
+    #debugger
     @assets = JSON.parse(Base64.decode64(params[:assets].to_s))
     session[:cf] = params[:cf].to_s
     session[:url_stampa] = Base64.decode64(params[:url_stampa].to_s)

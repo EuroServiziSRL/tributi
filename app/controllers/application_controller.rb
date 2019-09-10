@@ -1,14 +1,34 @@
 require 'httparty'
+require 'uri'
 
 class ApplicationController < ActionController::Base
   @@api_url = "http://api.civilianextdev.it/Tributi/api/"
   
   #ROOT della main_app
   def index
-    #debugger
-    @assets = JSON.parse(Base64.decode64(params[:assets].to_s))
-    session[:cf] = params[:cf].to_s
-    session[:url_stampa] = Base64.decode64(params[:url_stampa].to_s)
+    #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
+    hash_params = params.permit!.to_hash
+    if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+      dominio = URI.parse(request.env['HTTP_REFERER']).scheme+"://"+URI.parse(request.env['HTTP_REFERER']).host+(URI.parse(request.env['HTTP_REFERER']).port.nil? ? '' : ":#{URI.parse(request.env['HTTP_REFERER']).port}" )
+      hash_jwt_app = {
+        iss: 'tributi.soluzionipa.it',
+        id_app: 'tributi',
+        id_session_tributi: 'dsasd'
+      }
+      jwt = JsonWebToken.encode(hash_jwt_app)
+      result = HTTParty.get(dominio+"/portal/authentication/get_login_session", 
+        :body => params[:data].to_json,
+        :headers => { 'Authorization' => 'Bearer '+jwt } )
+      if !result["result"].nil? && result["result"].length>0
+        puts "ho sessione"
+      end
+    else
+      @assets = JSON.parse(Base64.decode64(params[:assets].to_s))
+      session[:cf] = params[:cf].to_s
+      session[:url_stampa] = Base64.decode64(params[:url_stampa].to_s)
+    end
+    
+    
     #render :json => session
   end
   

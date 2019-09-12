@@ -17,6 +17,8 @@ module Tributi
     config.load_defaults 5.2
     config.action_dispatch.default_headers = {'X-Frame-Options' => 'ALLOWALL'}
 
+    config.session_store :cookie_store, key: '_app_session', expire_after: 30.minutes
+
     # Settings in config/environments/* take precedence over those specified here.
     # Application configuration can go into files in config/initializers
     # -- all .rb files in that directory are automatically loaded after loading

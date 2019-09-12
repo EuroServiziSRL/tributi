@@ -75,3 +75,6 @@ bower.json
 
 # Ignore Byebug command history file.
 .byebug_history
+
+#non versiono i layout dei portali
+/app/views/layouts/layout_portali

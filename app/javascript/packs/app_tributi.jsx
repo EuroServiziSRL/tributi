@@ -28,7 +28,7 @@ var cf = 'SMNNGL67D24D644Y';
 
 $(document).ready(function(){
   var $div = $("<div>");
-  $("body").append($div);
+  $("#portal_container").append($div);
   ReactDOM.render(<AppTributi />, $div[0] );
 });
 

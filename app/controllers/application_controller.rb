@@ -1,36 +1,101 @@
 require 'httparty'
 require 'uri'
+require "base64"
 
 class ApplicationController < ActionController::Base
   @@api_url = "http://api.civilianextdev.it/Tributi/api/"
   
   #ROOT della main_app
   def index
-    #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
+    #permetto di usare tutti i parametri e li converto in hash
     hash_params = params.permit!.to_hash
-    if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+    #ricavo dominio da env che arriva
+    unless request.env['HTTP_REFERER'].blank?
       dominio = URI.parse(request.env['HTTP_REFERER']).scheme+"://"+URI.parse(request.env['HTTP_REFERER']).host+(URI.parse(request.env['HTTP_REFERER']).port.nil? ? '' : ":#{URI.parse(request.env['HTTP_REFERER']).port}" )
-      hash_jwt_app = {
-        iss: 'tributi.soluzionipa.it',
-        id_app: 'tributi',
-        id_session_tributi: 'dsasd'
-      }
-      jwt = JsonWebToken.encode(hash_jwt_app)
-      result = HTTParty.get(dominio+"/portal/authentication/get_login_session", 
-        :body => params[:data].to_json,
-        :headers => { 'Authorization' => 'Bearer '+jwt } )
-      if !result["result"].nil? && result["result"].length>0
-        puts "ho sessione"
+    else
+      redirect_to session['dominio']+"/portal/autenticazione"
+    end
+    #salvo in sessione per problemi con ricaricamento pagina
+    session['dominio'] = dominio unless dominio.blank?
+
+    if session.blank? || session[:user].blank? #controllo se ho fatto login
+      #se ho la sessione vuota devo ottenere una sessione dal portale
+      #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
+      if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+        hash_jwt_app = {
+          iss: 'tributi.soluzionipa.it', #dominio finale dell'app tributi
+          id_app: 'tributi',
+          id_utente: hash_params['u_id'],
+          sid: hash_params['sid']
+        }
+        jwt = JsonWebToken.encode(hash_jwt_app)
+        #richiesta in post a get_login_session con authorization bearer
+        result = HTTParty.post(dominio+"/portal/autenticazione/get_login_session", 
+          :body => hash_params,
+          :headers => { 'Authorization' => 'Bearer '+jwt } )
+        hash_result = result.parsed_response
+        #se ho risultato con stato ok ricavo dati dal portale e salvo in sessione 
+        #impostare durata sessione in application.rb: ora dura 30 minuti
+        if !hash_result.blank? && !hash_result["stato"].nil? && hash_result["stato"] == 'ok'
+          jwt_data = JsonWebToken.decode(hash_result['token'])
+          session[:user] = jwt_data #uso questo oggetto per capire se utente connesso!
+          session[:cf] = jwt_data[:cf]
+          session[:client_id] = hash_params['c_id']
+          session[:url_stampa] = Base64.decode64(hash_result['url_stampa'])
+          session[:assets] = JSON.parse(Base64.decode64(hash_result['assets']))
+        else
+          #se ho problemi ritorno su portale con parametro di errore
+          redirect_to dominio+"/portal/?err"
+        end
+      else
+        #mando a fare autenticazione sul portal
+        redirect_to dominio+"/portal/autenticazione"
+      end
+    end
+    #con la sessione settata carico la variabile per gli assets: serve??
+    @assets = session[:assets]
+    #ricavo l'hash del layout
+    result = HTTParty.get(dominio+"/portal/get_hash_layout", 
+      :body => {})
+    hash_result = JSON.parse(result.parsed_response)
+    if hash_result['esito'] == 'ok'
+      hash_layout = hash_result['hash']
+      nome_file = "#{session[:client_id]}_#{hash_layout}.html.erb"
+      #cerco if file di layout se presente uso quello
+      if Dir["#{Rails.root}/app/views/layouts/layout_portali/#{session[:client_id]}_#{hash_layout}.*"].length == 0
+        #scrivo il file
+        #cancello i vecchi file con stesso client_id (della stesa installazione)
+        Dir["#{Rails.root}/app/views/layouts/layout_portali/#{session[:client_id]}_*"].each{ |vecchio_layout|
+          File.delete(vecchio_layout) 
+        }
+        #richiedo il layout dal portale
+        result = HTTParty.get(dominio+"/portal/get_html_layout", :body => {})
+        hash_result = JSON.parse(result.parsed_response)
+        html_layout = Base64.decode64(hash_result['html'])
+        #Devo iniettare nel layout gli assets e lo yield
+        head_da_iniettare = "<%= csrf_meta_tags %>
+        <%= csp_meta_tag %>
+        <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
+        <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
+        <%= javascript_pack_tag 'app_tributi' %>"
+        html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><%=yield%>")
+        
+        # doc_html = Nokogiri::HTML.parse(html_layout)
+        # doc_html.at_css("head").add_next_sibling(head_da_iniettare)
+        # doc_html.at_css("#portal_container").add_child("<div id=\"tributi_main\"><%=yield%></div>")
+
+
+        path_dir_layout = "#{Rails.root}/app/views/layouts/layout_portali/"
+        File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout }
       end
     else
-      @assets = JSON.parse(Base64.decode64(params[:assets].to_s))
-      session[:cf] = params[:cf].to_s
-      session[:url_stampa] = Base64.decode64(params[:url_stampa].to_s)
-    end
-    
-    
+      logger.error "Portale cittadino #{dominio} non raggiungibile per ottenere hash di layout!"
+    end  
+
     #render :json => session
+    render :template => "application/index" , :layout => "layout_portali/#{nome_file}"
   end
+
   
   def authenticate
     result = HTTParty.post("#{@@api_url}utilities/AuthenticationToken?v=1.0", 

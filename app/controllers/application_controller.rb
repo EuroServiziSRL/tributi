@@ -13,7 +13,13 @@ class ApplicationController < ActionController::Base
     unless request.env['HTTP_REFERER'].blank?
       dominio = URI.parse(request.env['HTTP_REFERER']).scheme+"://"+URI.parse(request.env['HTTP_REFERER']).host+(URI.parse(request.env['HTTP_REFERER']).port.nil? ? '' : ":#{URI.parse(request.env['HTTP_REFERER']).port}" )
     else
-      redirect_to session['dominio']+"/portal/autenticazione"
+      unless session['dominio'].blank?
+        redirect_to session['dominio']+"/portal/autenticazione"
+        return
+      else
+        redirect_to sconosciuto_url
+        return      
+      end
     end
     #salvo in sessione per problemi con ricaricamento pagina
     session['dominio'] = dominio unless dominio.blank?
@@ -45,11 +51,25 @@ class ApplicationController < ActionController::Base
           session[:assets] = JSON.parse(Base64.decode64(hash_result['assets']))
         else
           #se ho problemi ritorno su portale con parametro di errore
-          redirect_to dominio+"/portal/?err"
+          unless dominio.blank?
+            redirect_to dominio+"/portal/?err"
+            return
+          else
+            redirect_to sconosciuto_url
+            return   
+          end
+          
         end
       else
-        #mando a fare autenticazione sul portal
-        redirect_to dominio+"/portal/autenticazione"
+        unless dominio.blank?
+          #mando a fare autenticazione sul portal
+          redirect_to dominio+"/portal/autenticazione"
+          return
+        else
+          redirect_to sconosciuto_url
+          return    
+        end
+        
       end
     end
     #con la sessione settata carico la variabile per gli assets: serve??
@@ -97,6 +117,9 @@ class ApplicationController < ActionController::Base
   end
 
   
+  def sconosciuto
+  end
+
   def authenticate
     result = HTTParty.post("#{@@api_url}utilities/AuthenticationToken?v=1.0", 
     :body => params[:data].to_json,

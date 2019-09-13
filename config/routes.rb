@@ -13,5 +13,6 @@ Rails.application.routes.draw do
   get 'imu_pagamenti' => 'application#imu_pagamenti', :as => :imu_pagamenti
   get 'imu_ravvedimento' => 'application#imu_ravvedimento', :as => :imu_ravvedimento
   
+  get 'sconosciuto' => 'application#sconosciuto', :as => :sconosciuto
   root to: "application#index"
 end

@@ -78,3 +78,5 @@ bower.json
 
 #non versiono i layout dei portali
 /app/views/layouts/layout_portali
+
+/app/config/master.key

@@ -76,7 +76,8 @@ bower.json
 # Ignore Byebug command history file.
 .byebug_history
 
-#non versiono i layout dei portali
-/app/views/layouts/layout_portali
+#non versiono i layout dei portali, solo la cartella col gitkeep
+/app/views/layouts/layout_portali/*
+!/app/views/layouts/layout_portali/.gitkeep
 
 /app/config/master.key

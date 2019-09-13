@@ -9,25 +9,21 @@ class ApplicationController < ActionController::Base
   def index
     #permetto di usare tutti i parametri e li converto in hash
     hash_params = params.permit!.to_hash
-    #ricavo dominio da env che arriva
-    unless request.env['HTTP_REFERER'].blank?
-      dominio = URI.parse(request.env['HTTP_REFERER']).scheme+"://"+URI.parse(request.env['HTTP_REFERER']).host+(URI.parse(request.env['HTTP_REFERER']).port.nil? ? '' : ":#{URI.parse(request.env['HTTP_REFERER']).port}" )
-    else
-      unless session['dominio'].blank?
-        redirect_to session['dominio']+"/portal/autenticazione"
-        return
-      else
-        redirect_to sconosciuto_url
-        return      
-      end
-    end
-    #salvo in sessione per problemi con ricaricamento pagina
-    session['dominio'] = dominio unless dominio.blank?
-
+  
     if session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+
+        #ricavo dominio da oauth2
+        url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
+        #url_oauth2_get_info = "http://localhost:3001/oauth/application/get_info_cid/"+hash_params['c_id'] #PER TEST
+        result_info_ente = HTTParty.get(url_oauth2_get_info,
+          :headers => { 'Content-Type' => 'application/json', 'Accept' => 'application/json' } )
+        hash_result_info_ente = result_info_ente.parsed_response
+        dominio = hash_result_info_ente['url_ente'] 
+        session['dominio'] = dominio
+        #creo jwt per avere sessione
         hash_jwt_app = {
           iss: 'tributi.soluzionipa.it', #dominio finale dell'app tributi
           id_app: 'tributi',
@@ -36,7 +32,7 @@ class ApplicationController < ActionController::Base
         }
         jwt = JsonWebToken.encode(hash_jwt_app)
         #richiesta in post a get_login_session con authorization bearer
-        result = HTTParty.post(dominio+"/portal/autenticazione/get_login_session", 
+        result = HTTParty.post(dominio+"/autenticazione/get_login_session", 
           :body => hash_params,
           :headers => { 'Authorization' => 'Bearer '+jwt } )
         hash_result = result.parsed_response
@@ -52,7 +48,7 @@ class ApplicationController < ActionController::Base
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless dominio.blank?
-            redirect_to dominio+"/portal/?err"
+            redirect_to dominio+"/?err"
             return
           else
             redirect_to sconosciuto_url
@@ -61,9 +57,10 @@ class ApplicationController < ActionController::Base
           
         end
       else
+
         unless dominio.blank?
           #mando a fare autenticazione sul portal
-          redirect_to dominio+"/portal/autenticazione"
+          redirect_to dominio+"/autenticazione"
           return
         else
           redirect_to sconosciuto_url
@@ -71,11 +68,13 @@ class ApplicationController < ActionController::Base
         end
         
       end
+    else
+      dominio = session['dominio'] || "dominio non presente"
     end
     #con la sessione settata carico la variabile per gli assets: serve??
     @assets = session[:assets]
     #ricavo l'hash del layout
-    result = HTTParty.get(dominio+"/portal/get_hash_layout", 
+    result = HTTParty.get(dominio+"/get_hash_layout", 
       :body => {})
     hash_result = JSON.parse(result.parsed_response)
     if hash_result['esito'] == 'ok'
@@ -89,7 +88,7 @@ class ApplicationController < ActionController::Base
           File.delete(vecchio_layout) 
         }
         #richiedo il layout dal portale
-        result = HTTParty.get(dominio+"/portal/get_html_layout", :body => {})
+        result = HTTParty.get(dominio+"/get_html_layout", :body => {})
         hash_result = JSON.parse(result.parsed_response)
         html_layout = Base64.decode64(hash_result['html'])
         #Devo iniettare nel layout gli assets e lo yield

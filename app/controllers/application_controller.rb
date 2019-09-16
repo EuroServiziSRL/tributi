@@ -107,7 +107,7 @@ class ApplicationController < ActionController::Base
 
 
         path_dir_layout = "#{Rails.root}/app/views/layouts/layout_portali/"
-        File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout }
+        File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
       end
     else
       logger.error "Portale cittadino #{@dominio} non raggiungibile per ottenere hash di layout!"

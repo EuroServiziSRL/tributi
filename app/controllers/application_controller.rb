@@ -6,7 +6,6 @@ require 'digest/sha1'
 class ApplicationController < ActionController::Base
   include ApplicationHelper
   @@api_url = "http://api.civilianext.it/Tributi/api/"
-  @@dominio = ""
   
   #ROOT della main_app
   def index
@@ -25,8 +24,8 @@ class ApplicationController < ActionController::Base
         result_info_ente = HTTParty.get(url_oauth2_get_info,
           :headers => { 'Content-Type' => 'application/json', 'Accept' => 'application/json' } )
         hash_result_info_ente = result_info_ente.parsed_response
-        @@dominio = hash_result_info_ente['url_ente'] 
-        session['dominio'] = @@dominio
+        dominio = hash_result_info_ente['url_ente'] 
+        session['dominio'] = dominio
         #creo jwt per avere sessione
         hash_jwt_app = {
           iss: 'tributi.soluzionipa.it', #dominio finale dell'app tributi
@@ -36,7 +35,7 @@ class ApplicationController < ActionController::Base
         }
         jwt = JsonWebToken.encode(hash_jwt_app)
         #richiesta in post a get_login_session con authorization bearer
-        result = HTTParty.post(@@dominio+"/autenticazione/get_login_session", 
+        result = HTTParty.post(dominio+"/autenticazione/get_login_session", 
           :body => hash_params,
           :headers => { 'Authorization' => 'Bearer '+jwt } )
         hash_result = result.parsed_response
@@ -50,12 +49,12 @@ class ApplicationController < ActionController::Base
 #           session[:cf] = "VLNRFL52T09G694P"
 #           session[:cf] = "DGNPLA71S20L157O"
           session[:client_id] = hash_params['c_id']
-          session[:url_stampa] = "#{@@dominio.chomp!("portal")}openweb/_ici/imutasi_stampa.php"
+          session[:url_stampa] = "#{dominio.chomp!("portal")}openweb/_ici/imutasi_stampa.php"
 #           session[:assets] = JSON.parse(Base64.decode64(hash_result['assets']))
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless dominio.blank?
-            redirect_to @@dominio+"/?err"
+            redirect_to dominio+"/?err"
             return
           else
             redirect_to sconosciuto_url
@@ -65,9 +64,9 @@ class ApplicationController < ActionController::Base
         end
       else
 
-        unless @@dominio.blank?
+        unless dominio.blank?
           #mando a fare autenticazione sul portal
-          redirect_to @@dominio+"/autenticazione"
+          redirect_to dominio+"/autenticazione"
           return
         else
           redirect_to sconosciuto_url
@@ -76,14 +75,14 @@ class ApplicationController < ActionController::Base
         
       end
     else
-      @@dominio = session['dominio'] || "dominio non presente"
+      dominio = session['dominio'] || "dominio non presente"
     end
     #con la sessione settata carico la variabile per gli assets: serve??
     @assets = session[:assets]
     #carico cf in variabile per usarla sulla view
     @cf_utente_loggato = session[:cf]
     #ricavo l'hash del layout
-    result = HTTParty.get(@@dominio+"/get_hash_layout", 
+    result = HTTParty.get(dominio+"/get_hash_layout", 
       :body => {})
     hash_result = JSON.parse(result.parsed_response)
     if hash_result['esito'] == 'ok'
@@ -97,7 +96,7 @@ class ApplicationController < ActionController::Base
           File.delete(vecchio_layout) 
         }
         #richiedo il layout dal portale
-        result = HTTParty.get(@@dominio+"/get_html_layout", :body => {})
+        result = HTTParty.get(dominio+"/get_html_layout", :body => {})
         hash_result = JSON.parse(result.parsed_response)
         html_layout = Base64.decode64(hash_result['html'])
         #Devo iniettare nel layout gli assets e lo yield
@@ -117,7 +116,7 @@ class ApplicationController < ActionController::Base
         File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
       end
     else
-      logger.error "Portale cittadino #{@@dominio} non raggiungibile per ottenere hash di layout!"
+      logger.error "Portale cittadino #{dominio} non raggiungibile per ottenere hash di layout!"
     end  
 
     #render :json => session
@@ -220,7 +219,7 @@ class ApplicationController < ActionController::Base
               queryString = "importo=#{value["importoResiduo"].gsub(',', '.')}&descrizione=#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]}&codice_applicazione=tributi&url_back=#{request.original_url}&idext=#{value["idAvviso"]}&tipo_elemento=pagamento_tari&nome_versante=#{session[:nome]}&cognome_versante=#{session[:cognome]}&codice_fiscale_versante=#{session[:cf]}&nome_pagatore=#{session[:nome]}&cognome_pagatore=#{session[:cognome]}&codice_fiscale_pagatore=#{session[:cf]}"
               hqs = Digest::SHA1.hexdigest("#{queryString}3ur0s3rv1z1")
               queryString = "#{queryString}&hqs=#{hqs}"
-              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": "#{@@dominio}/portal/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"}
+              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": "#{session[:dominio]}/portal/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"}
             end
           end
         end

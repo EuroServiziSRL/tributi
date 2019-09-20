@@ -7,11 +7,11 @@ Rails.application.routes.draw do
   get 'api_get' => 'application#api_get', :as => :api_get
   get 'authenticate' => 'application#authenticate', :as => :authenticate
   get 'soggetto' => 'application#soggetto', :as => :soggetto
-  get 'tasi_immobili' => 'application#tasi_immobili', :as => :tasi_immobili
-  get 'tasi_pagamenti' => 'application#tasi_pagamenti', :as => :tasi_pagamenti
-  get 'imu_immobili' => 'application#imu_immobili', :as => :imu_immobili
-  get 'imu_pagamenti' => 'application#imu_pagamenti', :as => :imu_pagamenti
-  get 'imu_ravvedimento' => 'application#imu_ravvedimento', :as => :imu_ravvedimento
+  get 'tari_immobili' => 'application#tari_immobili', :as => :tari_immobili
+  get 'tari_pagamenti' => 'application#tari_pagamenti', :as => :tari_pagamenti
+  get 'imutasi_immobili' => 'application#imutasi_immobili', :as => :imutasi_immobili
+  get 'versamenti' => 'application#versamenti', :as => :versamenti
+  get 'imutasi_pagamenti' => 'application#imutasi_pagamenti', :as => :imutasi_pagamenti
   
   get 'sconosciuto' => 'application#sconosciuto', :as => :sconosciuto
   root to: "application#index"

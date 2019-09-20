@@ -1,14 +1,18 @@
 require 'httparty'
 require 'uri'
 require "base64"
+require 'digest/sha1'
 
 class ApplicationController < ActionController::Base
-  @@api_url = "http://api.civilianextdev.it/Tributi/api/"
+  include ApplicationHelper
+  @@api_url = "http://api.civilianext.it/Tributi/api/"
+  @@dominio = ""
   
   #ROOT della main_app
   def index
     #permetto di usare tutti i parametri e li converto in hash
     hash_params = params.permit!.to_hash
+          session[:cf] = "VLNRFL52T09G694P"
   
     if session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
@@ -21,8 +25,8 @@ class ApplicationController < ActionController::Base
         result_info_ente = HTTParty.get(url_oauth2_get_info,
           :headers => { 'Content-Type' => 'application/json', 'Accept' => 'application/json' } )
         hash_result_info_ente = result_info_ente.parsed_response
-        @dominio = hash_result_info_ente['url_ente'] 
-        session['dominio'] = @dominio
+        @@dominio = hash_result_info_ente['url_ente'] 
+        session['dominio'] = @@dominio
         #creo jwt per avere sessione
         hash_jwt_app = {
           iss: 'tributi.soluzionipa.it', #dominio finale dell'app tributi
@@ -32,7 +36,7 @@ class ApplicationController < ActionController::Base
         }
         jwt = JsonWebToken.encode(hash_jwt_app)
         #richiesta in post a get_login_session con authorization bearer
-        result = HTTParty.post(@dominio+"/autenticazione/get_login_session", 
+        result = HTTParty.post(@@dominio+"/autenticazione/get_login_session", 
           :body => hash_params,
           :headers => { 'Authorization' => 'Bearer '+jwt } )
         hash_result = result.parsed_response
@@ -42,13 +46,16 @@ class ApplicationController < ActionController::Base
           jwt_data = JsonWebToken.decode(hash_result['token'])
           session[:user] = jwt_data #uso questo oggetto per capire se utente connesso!
           session[:cf] = jwt_data[:cf]
+          # TEST
+#           session[:cf] = "VLNRFL52T09G694P"
+#           session[:cf] = "DGNPLA71S20L157O"
           session[:client_id] = hash_params['c_id']
-          session[:url_stampa] = Base64.decode64(hash_result['url_stampa'])
-          session[:assets] = JSON.parse(Base64.decode64(hash_result['assets']))
+          session[:url_stampa] = "#{@@dominio.chomp!("portal")}openweb/_ici/imutasi_stampa.php"
+#           session[:assets] = JSON.parse(Base64.decode64(hash_result['assets']))
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless dominio.blank?
-            redirect_to @dominio+"/?err"
+            redirect_to @@dominio+"/?err"
             return
           else
             redirect_to sconosciuto_url
@@ -58,9 +65,9 @@ class ApplicationController < ActionController::Base
         end
       else
 
-        unless @dominio.blank?
+        unless @@dominio.blank?
           #mando a fare autenticazione sul portal
-          redirect_to @dominio+"/autenticazione"
+          redirect_to @@dominio+"/autenticazione"
           return
         else
           redirect_to sconosciuto_url
@@ -69,14 +76,14 @@ class ApplicationController < ActionController::Base
         
       end
     else
-      @dominio = session['dominio'] || "dominio non presente"
+      @@dominio = session['dominio'] || "dominio non presente"
     end
     #con la sessione settata carico la variabile per gli assets: serve??
     @assets = session[:assets]
     #carico cf in variabile per usarla sulla view
     @cf_utente_loggato = session[:cf]
     #ricavo l'hash del layout
-    result = HTTParty.get(@dominio+"/get_hash_layout", 
+    result = HTTParty.get(@@dominio+"/get_hash_layout", 
       :body => {})
     hash_result = JSON.parse(result.parsed_response)
     if hash_result['esito'] == 'ok'
@@ -90,7 +97,7 @@ class ApplicationController < ActionController::Base
           File.delete(vecchio_layout) 
         }
         #richiedo il layout dal portale
-        result = HTTParty.get(@dominio+"/get_html_layout", :body => {})
+        result = HTTParty.get(@@dominio+"/get_html_layout", :body => {})
         hash_result = JSON.parse(result.parsed_response)
         html_layout = Base64.decode64(hash_result['html'])
         #Devo iniettare nel layout gli assets e lo yield
@@ -110,7 +117,7 @@ class ApplicationController < ActionController::Base
         File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
       end
     else
-      logger.error "Portale cittadino #{@dominio} non raggiungibile per ottenere hash di layout!"
+      logger.error "Portale cittadino #{@@dominio} non raggiungibile per ottenere hash di layout!"
     end  
 
     #render :json => session
@@ -141,19 +148,14 @@ class ApplicationController < ActionController::Base
     
     if !result["result"].nil? && result["result"].length>0
       session[:identificativoSoggetto] = result["result"]["identificativoSoggetto"]
-      session[:cognome] = result["result"]["cognome"]
-      session[:nome] = result["result"]["nome"]
+      session[:cognome] = result["result"]["cognome"].strip
+      session[:nome] = result["result"]["nome"].strip
     end
-    
-#     result[:test] = "bearer #{session[:token]}"
-#     
-#     result[:params] = params
-#     result[:session] = session
     
     render :json => result    
   end
   
-  def tasi_immobili
+  def tari_immobili
     params[:data][:tipoRicerca] = "RicercaPerSoggetto"
     params[:data][:identificativoSoggetto] = session[:identificativoSoggetto]
     result = HTTParty.get("#{@@api_url}occupazioni/GetOccupazioni?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
@@ -163,7 +165,19 @@ class ApplicationController < ActionController::Base
     if !result["result"].nil? && result["result"].length>0
       result["result"].each do |value|
         domestica = !value['domestica'].nil? && value['domestica']?"Domestica":"Non domestica"
-        datiImmobile = {'tipoTariffa': "#{domestica} - #{value['codiceCategoria']}", "metriQuadri": value['totaleSuperficie'], "validita": "#{value['dataInizio']} - #{value['dataFine']}"}
+        date_start = DateTime.parse(value["dataInizio"])
+        formatted_date_start = date_start.strftime('%d/%m/%Y')
+        formatted_date_end = ""
+        if value["dataFine"]!=""
+          date_end = DateTime.parse(value["dataFine"])
+          formatted_date_end = date_end.strftime('%d/%m/%Y')
+        end
+        
+        stringavalidita = "dal #{formatted_date_start}"
+        if !date_end.nil? && date_end.strftime('%Y') != "9999"
+          stringavalidita = "dal #{formatted_date_start} al #{formatted_date_end}"
+        end
+        datiImmobile = {'tipoTariffa': "#{domestica} - #{value['codiceCategoria']}", "metriQuadri": value['totaleSuperficie'], "validita": stringavalidita}
         if !value['listaImmobile'].nil? && value['listaImmobile'].length>0
           datiImmobile['indirizzo'] = value['listaImmobile'][0]['indirizzo']
           datiImmobile['catasto'] = "#{value['listaImmobile'][0]['foglio']}/#{value['listaImmobile'][0]['numero']}/#{value['listaImmobile'][0]['subalterno']}"
@@ -177,25 +191,38 @@ class ApplicationController < ActionController::Base
           datiImmobile['riduzioniApplicate'] = ""
         end
         tabellaTasi << datiImmobile
-#         tabellaTasi << {'categoria': value['codiceCategoria'],'indirizzo': value['listaImmobile'][0]['indirizzo'],'catasto': "#{value['listaImmobile'][0]['foglio']}/#{value['listaImmobile'][0]['numero']}/#{value['listaImmobile'][0]['subalterno']}"}
-        #@tabellaTasi[key] = value
       end
     end
     
     render :json => tabellaTasi    
   end
   
-  def tasi_pagamenti
-    params[:data][:idSoggetto] = session[:identificativoSoggetto]
-    result = HTTParty.get("#{@@api_url}avvisiPagamento/GetAvvisiPagamento?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
-    :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
-    
+  def tari_pagamenti
+#     params[:data][:idSoggetto] = session[:identificativoSoggetto]
+      
     tabellaTasi = []
     
-    if !result["result"].nil? && result["result"].length>0
-      result["result"].each do |value|
-        if (value['dataAnnullamento'].blank?) && (value['statoEmissione'].include? "Emesso")
-          tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{value["dataAvviso"]}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"]}
+    for anno in (Date.current.year-3)..Date.current.year do
+      result = HTTParty.get("#{@@api_url}avvisiPagamento/GetAvvisiPagamento?v=1.0&request[idSoggetto]=#{session[:identificativoSoggetto]}&request[anno]=#{anno}", 
+      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
+      
+      if !result["result"].nil? && result["result"].length>0
+        result["result"].each do |value|
+          if (value['dataAnnullamento'].blank?) && value["importoResiduo"].gsub(',', '.').to_f>0           
+    
+            statoPagamento = stato_pagamento(value["idAvviso"])
+            
+            if(!statoPagamento.nil? && !statoPagamento[0].nil? && statoPagamento[0]["esito"]=="ok")
+              # pagamento ok, non lo mettiamo in lista
+            else
+              date = DateTime.parse(value["dataAvviso"])
+              formatted_date = date.strftime('%d/%m/%Y')
+              queryString = "importo=#{value["importoResiduo"].gsub(',', '.')}&descrizione=#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]}&codice_applicazione=tributi&url_back=#{request.original_url}&idext=#{value["idAvviso"]}&tipo_elemento=pagamento_tari&nome_versante=#{session[:nome]}&cognome_versante=#{session[:cognome]}&codice_fiscale_versante=#{session[:cf]}&nome_pagatore=#{session[:nome]}&cognome_pagatore=#{session[:cognome]}&codice_fiscale_pagatore=#{session[:cf]}"
+              hqs = Digest::SHA1.hexdigest("#{queryString}3ur0s3rv1z1")
+              queryString = "#{queryString}&hqs=#{hqs}"
+              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": "#{@@dominio}/portal/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"}
+            end
+          end
         end
       end
     end
@@ -203,22 +230,35 @@ class ApplicationController < ActionController::Base
     render :json => tabellaTasi    
   end
   
-  def imu_immobili
+  def imutasi_immobili
     params[:data][:tipoRicerca] = "RicercaPerSoggetto"
     params[:data][:identificativoSoggetto] = session[:identificativoSoggetto]
     result = HTTParty.get("#{@@api_url}titolarita/GetTitolarita?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
     
     tabellaImu = []
+    tabellaTasi = []
     if !result["result"].nil? && result["result"].length>0
       result["result"].each do |value|
+        
+        date_start = DateTime.parse(value["dataInizio"])
+        formatted_date_start = date_start.strftime('%d/%m/%Y')
+        date_end = DateTime.parse(value["dataFine"])
+        formatted_date_end = date_end.strftime('%d/%m/%Y')
+        
+        stringavalidita = "dal #{formatted_date_start}"
+        if date_end.strftime('%Y') != "9999"
+          stringavalidita = "dal #{formatted_date_start} al #{formatted_date_end}"
+        end
+          
         datiImmobile = { 
           "rendita": value["rendita"], 
-          "validita": "#{value["dataInizio"]} - #{value["dataFine"]}",
-          "categoria": value["categoriaCatastale"]["codice"],
-          "aliquota": value["aliquota"],
+          "validita": stringavalidita,
+          "categoria": !value["categoriaCatastale"].nil? ?value["categoriaCatastale"]["codice"]:'',
+          "aliquota": !value["aliquota"].nil? ?value["aliquota"]["descrizione"]:'',
           "catasto": "#{value["listaImmobileTributi"][0]["foglio"]}/#{value["listaImmobileTributi"][0]["numero"]}/#{value["listaImmobileTributi"][0]["subalterno"]}",
-          "indirizzo": value["listaImmobileTributi"][0]["indirizzo"]
+          "indirizzo": value["listaImmobileTributi"][0]["indirizzo"],
+          "applicazioneQuotaServiziIndivisibili": value["applicazioneQuotaServiziIndivisibili"]
         }
         if !value["tipoTitolarita"].nil? && value["tipoTitolarita"].length>0     
           datiImmobile['possesso'] = "#{value["percentualePossesso"]}% #{value["tipoTitolarita"]["descrizione"]}"
@@ -234,25 +274,56 @@ class ApplicationController < ActionController::Base
           riduzioni << "esente"
         end
         datiImmobile['riduzioni'] = riduzioni.join(" - ")
-        tabellaImu << datiImmobile
+        if value["applicazioneQuotaServiziIndivisibili"] 
+          tabellaTasi << datiImmobile
+        else
+          tabellaImu << datiImmobile
+        end 
       end
     end
     
     
-    render :json => tabellaImu    
+    render :json => {"imu": tabellaImu, "tasi": tabellaTasi}
   end
   
-  def imu_pagamenti
-    tabellaImu = []
-    for anno in 2012..2019 do
-      result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}", 
+  def versamenti
+    tabellaImu = [] 
+      
+    result = HTTParty.get("#{@@api_url}versamentiF24/GetVersamentiF24?v=1.0&codiceFiscale=#{session[:cf]}",
+    :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
+  
+    if !result["result"].nil? && result["result"].length>0
+      result["result"].each do |value|
+        tabellaImu << {
+          "imposta": value["desImposta"],
+          "dataVersamento": value["dataRiscossione"],
+          "annoRiferimento": value["annoRiferimento"],
+          "tipo": "F24",
+          "codiceTributo": value["codiceTributo"],
+          "acconto": value["acconto"],
+          "saldo": value["saldo"],
+          "detrazione": value["detrazione"],
+          "totale": value["importoDebito"],
+          "ravvedimento": value["ravvedimento"],
+          "violazione": value["violazione"]
+        }
+      end
+    end
+    
+    for anno in 2012..Date.current.year do
+      # serve davvero farlo una volta per imposta? verificare con dati reali
+#       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}&imposta=IciImu", 
+#       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}",
+      result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}",
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
     
-      if !result["result"].nil? && result["result"].length>0
+      if result.is_a?(Array) && !result["result"].nil? && result["result"].length>0
         result["result"].each do |value|
           tabellaImu << {
+            "imposta": value["desImposta"],
             "dataVersamento": value["dataRiscossione"],
             "annoRiferimento": value["annoRiferimento"],
+            "tipo": value["tipoVersamento"],
             "codiceTributo": value["codiceTributo"],
             "acconto": value["acconto"],
             "saldo": value["saldo"],
@@ -263,29 +334,48 @@ class ApplicationController < ActionController::Base
           }
         end
       end
+      
+      result2 = HTTParty.get("#{@@api_url}versamentiMultiCanale/GetVersamentiMultiCanale?v=1.0&codiceFiscale=#{session[:cf]}&annoRiferimento=#{anno}&imposta=Tasi", 
+      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
+    
+      if !result2["result"].nil? && result2["result"].length>0
+        result2["result"].each do |value|
+          tabellaImu << {
+            "imposta": value["desImposta"],
+            "dataVersamento": value["dataPagamento"],
+            "annoRiferimento": value["anno"],
+            "tipo": value["canale"],
+            "codiceTributo": value["codiceTributo"],
+            "acconto": value["codiceRata"],
+            "saldo": value["codiceRata"],
+            "detrazione": 0,
+            "totale": value["importo"],
+            "ravvedimento": value["ravvedimento"],
+            "violazione": false
+          }
+        end
+      end            
+      
     end 
     
     render :json => tabellaImu    
   end
    
-  def imu_ravvedimento
-    params[:data][:modulo] = "Imposta_Immobili"
+  def imutasi_pagamenti
     params[:data][:idSoggetto] = session[:identificativoSoggetto]
-    url = "#{@@api_url}importiPreliquidati/GetDettaglioPreliquidato?v=1.0&#{params[:data].to_unsafe_h.to_query}"
-    result = HTTParty.get("#{@@api_url}importiPreliquidati/GetDettaglioPreliquidato?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
-    :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
     
     tabellaImu = []
-    f24 = {"Acconto"=>{"totale"=>0,"det"=>0},"Saldo"=>{"totale"=>0,"det"=>0},"Unica"=>{"totale"=>0,"det"=>0, "num"=>0}}
+    listaF24 = {}
+      
     codiciTributo = {
       "3912"=> "abitazione",
       "3913"=> "rurali",
+      "3915"=> "terreni",
       "3914"=> "terreniC",
-      "3915"=> "terreniC",
       "3916"=> "areeC",
-      "3917"=> "areeC",
+      "3917"=> "aree",
       "3918"=> "altriC",
-      "3919"=> "altriC",
+      "3919"=> "altri",
       "3930"=> "prodC",
       "3925"=> "prod",
       "3958"=> "abitazioneT",
@@ -293,77 +383,170 @@ class ApplicationController < ActionController::Base
       "3960"=> "areeT",
       "3961"=> "altriT"
     }
-    codiciTributo.each do |codice, stringaTributo| 
-      stringaNum = "#{stringaTributo}"
-      stringaNum[0] = stringaNum[0,1].upcase
-      stringaNum = "num#{stringaNum}"
-
-      f24["Unica"][stringaTributo] = 0
-      f24["Unica"][stringaNum] = 0
-      f24["Acconto"][stringaTributo] = 0
-      f24["Acconto"][stringaNum] = 0
-      f24["Saldo"][stringaTributo] = 0
-      f24["Saldo"][stringaNum] = 0
-    end
-    if !result["result"].nil? && result["result"].length>0
-      result["result"].each do |value|
-      totale = value["totaleImportoDovuto"].gsub(',', '.').to_f
-        datiF24 = { 
-          "codiceTributo": value["codiceTributo"], 
-          "rata": value["rata"], 
-          "importoVersato": value["importoVersato"], 
-          "totaleImportoDovuto": value["totaleImportoDovuto"], 
-          "numeroImmobili": value["numeroImmobili"], 
-        }
-        tabellaImu << datiF24
-        if totale>0
-          stringaTributo = codiciTributo[value["codiceTributo"]]
-          stringaNum = "#{stringaTributo.chomp("C")}"
-          stringaNum[0] = stringaNum[0,1].upcase
-          stringaNum = "num#{stringaNum}"
-          if f24[value["rata"]][stringaNum].nil?
-            f24[value["rata"]][stringaNum] = 0
-          end
-          if !value["rata"].nil? && !f24.nil? && !f24[value["rata"]].nil?
-            f24[value["rata"]]["totale"] += totale
-            
-            f24[value["rata"]][stringaTributo] += totale
-            f24[value["rata"]][stringaNum] += value["numeroImmobili"]
-            f24[value["rata"]]["det"] += value["detrazioneUtilizzata"].gsub(',', '.').to_f
-            f24["Unica"]["totale"] += totale
-            if value["rata"] == "Acconto" 
-              f24["Unica"]["num"] += value["numeroImmobili"]
-              f24["Unica"][stringaNum] = value["numeroImmobili"]
-            end
-           
-            f24["Unica"][stringaTributo] += totale
-          end
-        end
-      end
-    end
     
-    url_stampa = "ravv=1&dataRavv=#{params[:data][:dataPagamento]}&cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{params[:data][:anno]}&stampaImposta=IMU&totale=#{f24['totale']}&det=#{f24["det"]}&num=#{f24["num"]}&sanzioni=1"
-    f24.each do |nomeRata, datiRata|
-      numRata = ""
-      if nomeRata == "Acconto" || nomeRata == "Saldo"
-        numRata = nomeRata=="Acconto"?"1":"2"
+    results = []
+    
+    log = ""
+    
+    for anno in (Date.current.year-3)..Date.current.year do
+      #serve una per anno, perchè senò si sovrascrivono i valori      
+      strutturaF24 = {"Acconto"=>{"totale"=>0,"totaleRavv"=>0,"det"=>0,"num"=>0},"Saldo"=>{"totale"=>0,"totaleRavv"=>0,"det"=>0,"num"=>0},"Unica"=>{"totale"=>0,"totaleRavv"=>0,"det"=>0,"num"=>0}}
+      codiciTributo.each do |codice, stringaTributo| 
+        stringaNum = "#{stringaTributo}"
+        stringaNum = stringaNum.chomp("1").chomp("2").chomp("C")
+        stringaNum[0] = stringaNum[0,1].upcase
+        stringaNum = "num#{stringaNum}"
+
+        strutturaF24["Unica"][stringaTributo] = 0
+        strutturaF24["Unica"][stringaNum] = 0
+        strutturaF24["Acconto"][stringaTributo] = 0
+        strutturaF24["Acconto"][stringaNum] = 0
+        strutturaF24["Acconto"]["num"] = 0
+        strutturaF24["Acconto"]["dovuto"] = 0
+        strutturaF24["Acconto"]["versato"] = 0
+        strutturaF24["Saldo"][stringaTributo] = 0
+        strutturaF24["Saldo"][stringaNum] = 0
+        strutturaF24["Saldo"]["num"] = 0
+        strutturaF24["Saldo"]["dovuto"] = 0
+        strutturaF24["Saldo"]["versato"] = 0
       end
-      datiRata.each do |key, value|
-        if key.end_with? "C"
-          queryKey = "#{key.chomp("C")}#{numRata}C"
-        elsif key.end_with? "T"
-          queryKey = "#{key.chomp("T")}#{numRata}T"
-        else
-          queryKey = "#{key}#{numRata}"
+    
+      params[:data][:anno] = anno
+      result = HTTParty.get("#{@@api_url}importiPreliquidati/GetDettaglioPreliquidato?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
+      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
+      results << result
+      
+      if !result["result"].nil? && result["result"].length>0        
+        
+        result["result"].each do |value|
+          totale = value["totaleImportoDovuto"].gsub(',', '.').to_f
+#           datiF24 = { 
+#             "anno": anno, 
+#             "rata": value["rata"], 
+#             "importoVersato": value["importoVersato"], 
+#             "totaleImportoDovuto": value["totaleImportoDovuto"], 
+#             "numeroImmobili": value["numeroImmobili"], 
+#           }
+#           tabellaImu << datiF24
+          if totale>0
+    
+            listaF24[anno] = strutturaF24
+            stringaTributo = codiciTributo[value["codiceTributo"]]
+            stringaNum = "#{stringaTributo.chomp("1")}"
+            stringaNum = "#{stringaNum.chomp("2")}"
+            stringaNum = "#{stringaNum.chomp("C")}"
+            stringaNum = stringaTributo
+            stringaNum[0] = stringaNum[0,1].upcase
+            stringaNum = "num#{stringaNum}"
+            if listaF24[anno][value["rata"]][stringaNum].nil?
+              listaF24[anno][value["rata"]][stringaNum] = 0
+            end
+            if listaF24[anno][value["rata"]][stringaTributo].nil?
+              listaF24[anno][value["rata"]][stringaTributo] = 0
+            end
+            if listaF24[anno]["Unica"][stringaTributo].nil?
+              listaF24[anno]["Unica"][stringaTributo] = 0
+            end
+            if !value["rata"].nil? && !listaF24.nil? && !listaF24[anno][value["rata"]].nil?
+              if value["totaleImportoDovuto"].gsub(',', '.').to_f > 0
+                listaF24[anno][value["rata"]]["totale"] += totale
+                listaF24[anno][value["rata"]]["totaleRavv"] += totale
+                listaF24[anno]["Unica"]["totaleRavv"] += totale
+                listaF24[anno]["Unica"]["totale"] += totale
+                
+                log = log+"adding #{value["numeroImmobili"]} to #{stringaNum} for codice tributo #{value["codiceTributo"]} rata #{value["rata"]} anno #{anno} #{value}| "
+                
+                listaF24[anno][value["rata"]][stringaTributo] += totale
+                listaF24[anno][value["rata"]][stringaNum] += value["numeroImmobili"]
+                listaF24[anno][value["rata"]]["num"] += value["numeroImmobili"]
+                listaF24[anno][value["rata"]]["det"] += value["detrazioneUtilizzata"].gsub(',', '.').to_f
+                listaF24[anno][value["rata"]]["dovuto"] += value["totaleImportoDovuto"].gsub(',', '.').to_f
+                listaF24[anno][value["rata"]]["versato"] += value["importoVersato"].gsub(',', '.').to_f
+                listaF24[anno]["Unica"]["totale"] += totale
+                if value["rata"] == "Acconto" 
+                  listaF24[anno]["Unica"]["num"] += value["numeroImmobili"]
+                  listaF24[anno]["Unica"][stringaNum] = value["numeroImmobili"]
+                end
+              
+                listaF24[anno]["Unica"][stringaTributo] += totale
+              else 
+                log = log + "Deleting #{value["rata"]} from #{anno}|";
+                listaF24[anno].tap { |hs| hs.delete(value["rata"]) }
+              end
+            end
+          else
+            log = log + "Deleting #{value["rata"]} from #{anno}|";
+            listaF24[anno].tap { |hs| (!hs.nil? && !hs[value["rata"]].nil?) ? hs.delete(value["rata"]) : next }
+          end
+        end      
+      end
+      
+    end
+        
+    
+    
+    listaF24.each do |anno, f24|
+      url_stampa = "ravv=1&dataRavv=#{params[:data][:dataPagamento]}&cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{(params[:data][:modulo]=="Imposta_Immobili"?"IMU":"TASI")}&sanzioni=1"
+      
+      f24.each do |nomeRata, datiRata|
+        numRata = ""
+#         if nomeRata == "Acconto" || nomeRata == "Saldo"
+#           numRata = nomeRata=="Acconto"?"1":"2"
+#           datiRata.each do |key, value|
+#             if key.end_with? "C"
+#               queryKey = "#{key.chomp("C")}#{numRata}C"
+#             elsif key.end_with? "T"
+#               queryKey = "#{key.chomp("T")}#{numRata}T"
+#             else
+#               queryKey = "#{key}#{numRata}"
+#             end
+#             
+#             url_stampa += "&#{queryKey}=#{value}"
+#           end
+#         end
+          numRata = nomeRata=="Unica"?"":(nomeRata=="Acconto"?"1":"2")
+          datiRata.each do |key, value|
+            if key.end_with? "C"
+              queryKey = "#{key.chomp("C")}#{numRata}C"
+            elsif key.end_with? "T"
+              queryKey = "#{key.chomp("T")}#{numRata}T"
+            else
+              queryKey = "#{key}#{numRata}"
+            end
+            
+            queryKey[0] = queryKey[0].downcase;
+            
+            url_stampa += "&#{queryKey}=#{value}"
+          end
+        
+      end
+      
+      f24.each do |nomeRata, datiRata|       
+        if nomeRata == "Acconto" || nomeRata == "Saldo"
+          url_stampa_rata = url_stampa+"&totale=#{f24[nomeRata]['totale']}&det=#{f24[nomeRata]["det"]}&num=#{f24[nomeRata]["num"]}"
+          
+          datiF24 = { 
+            "anno": anno, 
+            "rata": nomeRata, 
+            "importoVersato": datiRata["versato"], 
+            "totaleImportoDovuto": datiRata["totale"], 
+            "numeroImmobili": datiRata["num"], 
+#             "azioni": "<a href='#{session[:url_stampa]}?rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa}'>Stampa</a>"
+            "azioni": "#{session[:url_stampa]}?rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa_rata}"
+          }
+          tabellaImu << datiF24
+        
         end
         
-        url_stampa += "&#{queryKey}=#{value}"
       end
+      
     end
     
-    urls = {"acconto":"#{session[:url_stampa]}?rata=acconto&acconto=true&#{url_stampa}", "saldo":"#{session[:url_stampa]}?rata=saldo&saldo=true&#{url_stampa}"}
+#     urls = {"acconto":"#{session[:url_stampa]}?rata=acconto&acconto=true&#{url_stampa}", "saldo":"#{session[:url_stampa]}?rata=saldo&saldo=true&#{url_stampa}"}
     
-    render :json => {"tabella": tabellaImu, "urls": urls, "f24": f24}
+#     render :json => {"tabella": tabellaImu, "urls": urls, "listaF24": listaF24}
+    render :json => {"log": log, "tabella": tabellaImu, "listaF24": listaF24, "results": results}
+#     render :json => {"tabella": tabellaImu, "listaF24": listaF24}
   end
   
   #da fare

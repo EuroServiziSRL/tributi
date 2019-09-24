@@ -35,7 +35,8 @@ class ApplicationController < ActionController::Base
           iss: 'tributi.soluzionipa.it', #dominio finale dell'app tributi
           id_app: 'tributi',
           id_utente: hash_params['u_id'],
-          sid: hash_params['sid']
+          sid: hash_params['sid'],
+          api_next: true
         }
         jwt = JsonWebToken.encode(hash_jwt_app)
         #richiesta in post a get_login_session con authorization bearer

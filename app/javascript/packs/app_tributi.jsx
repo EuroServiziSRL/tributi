@@ -1,16 +1,13 @@
-import React from 'react'
-import ReactDOM from 'react-dom'
-import Select from 'react-select';
+import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import $ from 'jquery';
 window.jQuery = $;
 window.$ = $;
+
+import Select from 'react-select';
 import BootstrapTable from 'react-bootstrap-table-next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleNotch } from '@fortawesome/free-solid-svg-icons'
-
-// var cf = 'SMNNGL67D24D644Y';
-// var cf = 'ZZISNT46H66D644A';
-// var anno = 2017;
 
 $(document).ready(function(){
   $(".tab-pane").hide();
@@ -34,10 +31,12 @@ function buttonFormatter(cell,row) {
   console.log(cell);
   if (cell.includes("aggiungi_pagamento_pagopa")) {label = "Paga con PagoPA";}
   else if(cell.includes("servizi/pagamenti")) { label = "Vai al carrello"; }
-  return  <a href={cell} class="btn btn-default">{label}</a>;
+  return  <a href={cell} className="btn btn-default">{label}</a>;
 } 
 
 class AppTributi extends React.Component{
+  dominio = window.location.protocol+"//"+window.location.hostname+":"+window.location.port;
+  numeroAnni = $("#numero_anni").text();
   columns = {
     tari: {
       immobili: [
@@ -71,8 +70,9 @@ class AppTributi extends React.Component{
       pagamenti: [
         { dataField: "anno", text: "Anno" },
         { dataField: "rata", text: "Rata" },
-        { dataField: "totaleImportoDovuto", text: "Totale dovuto" },
+        { dataField: "importoDovuto", text: "Importo dovuto" },
         { dataField: "importoVersato", text: "Importo versato" },
+        { dataField: "totaleImportoDovuto", text: "Totale dovuto" },
         { dataField: "numeroImmobili", text: "N. immobili" },
         { dataField: "azioni", text: "Azioni", formatter: buttonFormatter },
       ],    
@@ -140,14 +140,20 @@ class AppTributi extends React.Component{
   }
   
   componentDidUpdate(prevProps, prevState, snapshot) {
-    console.log("AppTributi did update.");
-    console.log(this.state.tari);
+    
+    console.log("AppTributi did update");
+    $("table.table-responsive").each(function(){
+      var id = $(this).attr("id");
+      console.log("Calling tableToUl on "+id);
+//       tableToUl($("#"+id));
+    });
   }
   
   authenticate() {
+    console.log("dominio: "+this.dominio);
     var self = this;
-    console.log("Authenticating...");
-    $.get("http://localhost:3000/authenticate", {data:this.auth}).done(function( response ) {
+    console.log("Authenticating on "+this.dominio+"/authenticate...");
+    $.get(this.dominio+"/authenticate", {data:this.auth}).done(function( response ) {
       console.log("response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -163,7 +169,7 @@ class AppTributi extends React.Component{
   getIdentificativo() {
     var self = this;
     console.log("Getting identificativo...");
-    $.get("http://localhost:3000/soggetto", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/soggetto", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
       console.log("identificativo response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -187,7 +193,7 @@ class AppTributi extends React.Component{
   getImmobiliTARI() {
     var self = this;
     console.log("Getting immobili tari...");
-    $.get("http://localhost:3000/tari_immobili", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
       console.log("immobili tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -206,7 +212,7 @@ class AppTributi extends React.Component{
   getPagamentiTARI() {
     var self = this;
     console.log("Getting pagamenti tari...");
-    $.get("http://localhost:3000/tari_pagamenti", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
       console.log("pagamenti tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -225,7 +231,7 @@ class AppTributi extends React.Component{
   getImmobiliIMUTASI() {
     var self = this;
     console.log("Getting immobili imutasi...");
-    $.get("http://localhost:3000/imutasi_immobili", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
       console.log("imutasi response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -245,7 +251,7 @@ class AppTributi extends React.Component{
   getVersamenti() {
     var self = this;
     console.log("Getting versamenti...");
-    $.get("http://localhost:3000/versamenti", {data:{}}).done(function( response ) {
+    $.get(this.dominio+"/versamenti", {data:{}}).done(function( response ) {
       console.log("versamenti response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -271,13 +277,16 @@ class AppTributi extends React.Component{
 //     today = encodeURI(mm + '/' + dd + '/' + yyyy); // prod
     today = encodeURI(yyyy + '-' + mm + '-' + dd); // test
     console.log("Getting pagamenti imutasi ("+today+")...");
-    $.get("http://localhost:3000/imutasi_pagamenti", {data:{dataPagamento:today,modulo:"Imposta_Immobili"}}).done(function( response ) {
+    $.get(this.dominio+"/imutasi_pagamenti", {data:{dataPagamento:today,modulo:"Imposta_Immobili"}}).done(function( response ) {
       console.log("pagamenti imu response is loaded");
       console.log(response);
       if(response.hasError) {
         console.log("response error");
       } else {
         var state = self.state;
+        for (var i in response.tabella) {
+          if(response.tabella[i].totaleImportoDovuto == 0){delete response.tabella[i];}
+        }
         state.imu.pagamenti = response;
         self.setState(state);
       }
@@ -285,13 +294,16 @@ class AppTributi extends React.Component{
       console.log("pagamenti fail!");
       console.log(response);
     });
-    $.get("http://localhost:3000/imutasi_pagamenti", {data:{dataPagamento:today,modulo:"Tassa_Servizi"}}).done(function( response ) {
+    $.get(this.dominio+"/imutasi_pagamenti", {data:{dataPagamento:today,modulo:"Tassa_Servizi"}}).done(function( response ) {
       console.log("pagamenti tasi response is loaded");
       console.log(response);
       if(response.hasError) {
         console.log("response error");
       } else {
         var state = self.state;
+        for (var i in response.tabella) {
+          if(response.tabella[i].totaleImportoDovuto == 0){delete response.tabella[i];}
+        }
         state.tasi.pagamenti = response;
         self.setState(state);
       }
@@ -343,86 +355,93 @@ class AppTributi extends React.Component{
         
         <p></p>
           
-        <ul class="nav nav-tabs">
-          <li role="presentation" class="active"><a href="#immobili" aria-controls="immobili" role="tab" data-toggle="immobili">Situazione annuale </a></li>
+        <ul className="nav nav-tabs">
+          <li role="presentation" className="active"><a href="#immobili" aria-controls="immobili" role="tab" data-toggle="immobili">Situazione annuale </a></li>
           <li role="presentation"><a href="#pagamenti" aria-controls="pagamenti" role="tab" data-toggle="pagamenti">Versamenti</a></li>
           <li role="presentation"><a href="#ravvedimenti" aria-controls="ravvedimenti" role="tab" data-toggle="ravvedimenti">Da pagare</a></li>
         </ul>
         
-        <div class="tab-content">
+        <div className="tab-content">
         
-          <div role="tabpanel" class="tab-pane" id="immobili">
+          <div role="tabpanel" className="tab-pane" id="immobili">
             <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><Select options={options} value={selectedYear} onChange={this.changeYear} /></div></h3>
             <h4>TARI - Tassa Rifiuti</h4>
-            {typeof(this.state.tari.immobili) == "undefined" ? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> : this.state.tari.immobili.length>0 ? <BootstrapTable
+            {typeof(this.state.tari.immobili) == "undefined" ? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.immobili.length>0 ? <BootstrapTable
+                id="immobiliTari"
                 keyField={"indirizzo"}
                 data={this.state.tari.immobili}
                 columns={this.columns.tari.immobili}
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p class="text-center">Nessun risultato per l'anno scelto</p> }
+              /> : <p className="text-center">Nessun risultato per l'anno scelto</p> }
             <h4>IMU - Imposta sugli Immobili</h4>
-            {typeof(this.state.imu.immobili) == "undefined"? <p class="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> :this.state.imu.immobili.length>0 ? <BootstrapTable
-                keyField={"validita"}
+            {typeof(this.state.imu.immobili) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.imu.immobili.length>0 ? <BootstrapTable
+                id="immobiliImu"
+                keyField={"id"}
                 data={this.state.imu.immobili}
                 columns={this.columns.imutasi.immobili}
                 classes="table-responsive"
                 striped
                 hover
-              />  : <p class="text-center">Nessun risultato per l'anno scelto</p> }
+              />  : <p className="text-center">Nessun risultato per l'anno scelto</p> }
             <h4>TASI - Tributo Servizi Indivisibili</h4>
-            {typeof(this.state.tasi.immobili) == "undefined"? <p class="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> :this.state.tasi.immobili.length>0 ? <BootstrapTable
-                keyField={"validita"}
+            {typeof(this.state.tasi.immobili) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.immobili.length>0 ? <BootstrapTable
+                id="immobiliTasi"
+                keyField={"id"}
                 data={this.state.tasi.immobili}
                 columns={this.columns.imutasi.immobili}
                 classes="table-responsive"
                 striped
                 hover
-              />  : <p class="text-center">Nessun risultato per l'anno scelto</p> }
+              />  : <p className="text-center">Nessun risultato per l'anno scelto</p> }
           </div>
           
-          <div role="tabpanel" class="tab-pane" id="pagamenti">
+          <div role="tabpanel" className="tab-pane" id="pagamenti">
             <h3>Elenco versamenti per gli anni 2012 - {this.annoCorrente}</h3>
-            {typeof(this.state.versamenti) == "undefined"? <p class="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> :this.state.versamenti.length>0 ? <BootstrapTable
+            {typeof(this.state.versamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.versamenti.length>0 ? <BootstrapTable
+                id="versamenti"
                 keyField={"totale"}
                 data={this.state.versamenti}
                 columns={this.columns.versamenti}
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p class="text-center">Nessun risultato per gli anni 2012 - {this.annoCorrente}</p> }
+              /> : <p className="text-center">Nessun risultato per gli anni 2012 - {this.annoCorrente}</p> }
           </div>
           
-          <div role="tabpanel" class="tab-pane" id="ravvedimenti">
-            <h3>Elenco pagamenti in sospeso per gli anni {this.annoCorrente-3} - {this.annoCorrente}</h3>
+          <div role="tabpanel" className="tab-pane" id="ravvedimenti">
+            <h3>Elenco pagamenti in sospeso per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</h3>
             <h4>TARI - Tassa Rifiuti</h4>
-            {typeof(this.state.tari.pagamenti) == "undefined"? <p class="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> : this.state.tari.pagamenti.length>0 ? <BootstrapTable
+            {typeof(this.state.tari.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.pagamenti.length>0 ? <BootstrapTable
+                id="pagamentiTari"
                 keyField={"descrizioneAvviso"}
                 data={this.state.tari.pagamenti}
                 columns={this.columns.tari.pagamenti}
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p class="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-3} - {this.annoCorrente}</p> }
+              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }
             <h4>IMU - Imposta sugli Immobili</h4>
-            {typeof(this.state.imu.pagamenti) == "undefined"? <p class="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> :this.state.imu.pagamenti.tabella.length>0 ? <BootstrapTable
+            {typeof(this.state.imu.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.imu.pagamenti.tabella.length>0 ? <BootstrapTable
+                id="pagamentiImu"
                 keyField={"azioni"}
                 data={this.state.imu.pagamenti.tabella}
                 columns={this.columns.imutasi.pagamenti}
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p class="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-3} - {this.annoCorrente}</p> }       
+              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }       
             <h4>TASI - Tributo Servizi Indivisibili</h4>
-            {typeof(this.state.tasi.pagamenti) == "undefined"? <p class="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span class="sr-only">caricamento...</span></p> :this.state.tasi.pagamenti.tabella.length>0 ? <BootstrapTable
+            {typeof(this.state.tasi.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.pagamenti.tabella.length>0 ? <BootstrapTable
+                id="pagamentiTasi"
                 keyField={"azioni"}
                 data={this.state.tasi.pagamenti.tabella}
                 columns={this.columns.imutasi.pagamenti}
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p class="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-3} - {this.annoCorrente}</p> }      
+              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }      
           </div>
         
         </div>

@@ -5,7 +5,8 @@ require 'digest/sha1'
 
 class ApplicationController < ActionController::Base
   include ApplicationHelper
-  @@api_url = "http://api.civilianext.it/Tributi/api/"
+  @@api_resource = "http://api.civilianext.it"
+  @@api_url = "#{@@api_resource}/Tributi/api/"
   
   #ROOT della main_app
   def index
@@ -127,8 +128,14 @@ class ApplicationController < ActionController::Base
   end
 
   def authenticate
+    params = {
+       "targetResource": "#{@@api_resource}", 
+       "tenantId": "1c46d27e-fa3c-4ad4-a1cc-410d55d2feb8",
+       "clientId": "2b1cfbdc-decc-45a2-a215-8a4179ab79f7",
+       "secret": "g*Q[Azfhd_u=Cnrmvl6uaNkxvpxzn184"
+    }
     result = HTTParty.post("#{@@api_url}utilities/AuthenticationToken?v=1.0", 
-    :body => params[:data].to_json,
+    :body => params.to_json,
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json'  } )
 
     if !result["result"].nil? && result["result"].length>0

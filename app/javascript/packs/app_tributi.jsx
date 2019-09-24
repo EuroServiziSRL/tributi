@@ -116,12 +116,12 @@ class AppTributi extends React.Component{
     }; */ 
 
 // piovene rocchette
-    this.auth = {
-      "targetResource": "http://api.civilianext.it", // API URL è in application controller!!!
-      "tenantId": "1c46d27e-fa3c-4ad4-a1cc-410d55d2feb8",
-      "clientId" :"2b1cfbdc-decc-45a2-a215-8a4179ab79f7",
-      "secret":"g*Q[Azfhd_u=Cnrmvl6uaNkxvpxzn184"
-    };
+//     this.auth = {
+//       "targetResource": "http://api.civilianext.it", // API URL è in application controller!!!
+//       "tenantId": "1c46d27e-fa3c-4ad4-a1cc-410d55d2feb8",
+//       "clientId" :"2b1cfbdc-decc-45a2-a215-8a4179ab79f7",
+//       "secret":"g*Q[Azfhd_u=Cnrmvl6uaNkxvpxzn184"
+//     };
 
 
 // ascoli piceno
@@ -134,7 +134,7 @@ class AppTributi extends React.Component{
 
     this.selectAnni = React.createRef();
     this.annoCorrente = new Date().getFullYear();
-    this.state.options = {selectedYear: { value: this.annoCorrente, label: this.annoCorrente }};
+    this.state.selectedYear = this.annoCorrente;
     
     this.authenticate();
   }
@@ -145,15 +145,20 @@ class AppTributi extends React.Component{
     $("table.table-responsive").each(function(){
       var id = $(this).attr("id");
       console.log("Calling tableToUl on "+id);
-//       tableToUl($("#"+id));
+      tableToUl($("#"+id));
     });
+  }
+  
+  componentDidMount() {
+    var $yearDropdown = $("#yearSelect");
+    $yearDropdown.on('change', this.changeYear);
   }
   
   authenticate() {
     console.log("dominio: "+this.dominio);
     var self = this;
     console.log("Authenticating on "+this.dominio+"/authenticate...");
-    $.get(this.dominio+"/authenticate", {data:this.auth}).done(function( response ) {
+    $.get(this.dominio+"/authenticate").done(function( response ) {
       console.log("response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -169,7 +174,7 @@ class AppTributi extends React.Component{
   getIdentificativo() {
     var self = this;
     console.log("Getting identificativo...");
-    $.get(this.dominio+"/soggetto", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/soggetto", {data:{anno:this.state.selectedYear}}).done(function( response ) {
       console.log("identificativo response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -193,7 +198,7 @@ class AppTributi extends React.Component{
   getImmobiliTARI() {
     var self = this;
     console.log("Getting immobili tari...");
-    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.selectedYear}}).done(function( response ) {
       console.log("immobili tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -212,7 +217,7 @@ class AppTributi extends React.Component{
   getPagamentiTARI() {
     var self = this;
     console.log("Getting pagamenti tari...");
-    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.selectedYear}}).done(function( response ) {
       console.log("pagamenti tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -231,7 +236,7 @@ class AppTributi extends React.Component{
   getImmobiliIMUTASI() {
     var self = this;
     console.log("Getting immobili imutasi...");
-    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.options.selectedYear.value}}).done(function( response ) {
+    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.selectedYear}}).done(function( response ) {
       console.log("imutasi response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -313,33 +318,42 @@ class AppTributi extends React.Component{
     });
   }
   
-  changeYear = selectedYear => {
-    console.log(`Year has changed:`, selectedYear);
-//     this.setState({options:{ selectedYear }});
-//     this.setState({options:{ selectedYear }, imu:{pagamenti:this.state.versamenti}, tari:{}});
-//     this.state.options.selectedYear = selectedYear;
+  changeYear(event)  {
+    var selectedYear = event.target.value
+    console.log("Year has changed: "+selectedYear);
     var state = this.state;
-    state.options.selectedYear = selectedYear;
+    console.log("setting state.selectedYear");
+    state.selectedYear = selectedYear;
+    console.log("deleting state.tari.immobili");
     delete state.tari.immobili;
+    console.log("deleting state.imu.immobili");
     delete state.imu.immobili;
+    console.log("deleting state.identificativoSoggetto");
     delete state.identificativoSoggetto;
+    console.log("setting state")
     this.setState(state);
-//     this.setState({imu:{pagamenti:this.state.versamenti}, tari:{}});
-//     console.log(this.state);
+    console.log("state has changed");
+    console.log(this.state);
     this.getIdentificativo();
     this.getImmobiliTARI();
-//     this.getPagamentiTARI();
     this.getImmobiliIMUTASI();
-//     this.getPagamentiIMUTASI();
   };
+  
+  changeDataType() {
+    console.log('entered');
+  }
   
   render(){
     console.log("rendering app tributi");
-    const { selectedYear } = this.state.options;
+    const { selectedYear } = this.state.selectedYear;
     var options = [];
     
+//     for(var i = this.annoCorrente; i>=2012; i--){
+//       options.push({ value: i, label: i });
+//     }
+    
     for(var i = this.annoCorrente; i>=2012; i--){
-      options.push({ value: i, label: i });
+      options.push(<option key={i} value={i} >{i}</option>);
     }
     
     return(
@@ -364,7 +378,7 @@ class AppTributi extends React.Component{
         <div className="tab-content">
         
           <div role="tabpanel" className="tab-pane" id="immobili">
-            <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><Select options={options} value={selectedYear} onChange={this.changeYear} /></div></h3>
+            <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><select className="form-control" id="yearSelect" >{options}</select></div></h3>
             <h4>TARI - Tassa Rifiuti</h4>
             {typeof(this.state.tari.immobili) == "undefined" ? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.immobili.length>0 ? <BootstrapTable
                 id="immobiliTari"

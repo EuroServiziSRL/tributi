@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
-import $ from 'jquery';
-window.jQuery = $;
-window.$ = $;
+// import $ from 'jquery';
+// window.jQuery = $;
+// window.$ = $;
 
 import Select from 'react-select';
 import BootstrapTable from 'react-bootstrap-table-next';
@@ -28,10 +28,9 @@ $(document).ready(function(){
 
 function buttonFormatter(cell,row) {
   var label = "Stampa";
-  console.log(cell);
   if (cell.includes("aggiungi_pagamento_pagopa")) {label = "Paga con PagoPA";}
   else if(cell.includes("servizi/pagamenti")) { label = "Vai al carrello"; }
-  return  <a href={cell} className="btn btn-default">{label}</a>;
+  return  <a href={cell} target="_blank" className="btn btn-default">{label}</a>;
 } 
 
 class AppTributi extends React.Component{
@@ -134,7 +133,7 @@ class AppTributi extends React.Component{
 
     this.selectAnni = React.createRef();
     this.annoCorrente = new Date().getFullYear();
-    this.state.selectedYear = this.annoCorrente;
+    this.state.selected = { value: this.annoCorrente, label: this.annoCorrente };
     
     this.authenticate();
   }
@@ -145,13 +144,13 @@ class AppTributi extends React.Component{
     $("table.table-responsive").each(function(){
       var id = $(this).attr("id");
       console.log("Calling tableToUl on "+id);
-      tableToUl($("#"+id));
+//       tableToUl($("#"+id));
     });
   }
   
   componentDidMount() {
-    var $yearDropdown = $("#yearSelect");
-    $yearDropdown.on('change', this.changeYear);
+//     var $yearDropdown = $("#yearSelect");
+//     $yearDropdown.on('change', this.changeYear);
   }
   
   authenticate() {
@@ -174,7 +173,7 @@ class AppTributi extends React.Component{
   getIdentificativo() {
     var self = this;
     console.log("Getting identificativo...");
-    $.get(this.dominio+"/soggetto", {data:{anno:this.state.selectedYear}}).done(function( response ) {
+    $.get(this.dominio+"/soggetto", {data:{anno:this.state.selected.value}}).done(function( response ) {
       console.log("identificativo response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -198,7 +197,7 @@ class AppTributi extends React.Component{
   getImmobiliTARI() {
     var self = this;
     console.log("Getting immobili tari...");
-    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.selectedYear}}).done(function( response ) {
+    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.selected.value}}).done(function( response ) {
       console.log("immobili tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -217,7 +216,7 @@ class AppTributi extends React.Component{
   getPagamentiTARI() {
     var self = this;
     console.log("Getting pagamenti tari...");
-    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.selectedYear}}).done(function( response ) {
+    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.selected.value}}).done(function( response ) {
       console.log("pagamenti tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -236,7 +235,7 @@ class AppTributi extends React.Component{
   getImmobiliIMUTASI() {
     var self = this;
     console.log("Getting immobili imutasi...");
-    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.selectedYear}}).done(function( response ) {
+    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.selected.value}}).done(function( response ) {
       console.log("imutasi response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -318,10 +317,16 @@ class AppTributi extends React.Component{
     });
   }
   
-  changeYear(event)  {
+  changeYear (newValue)  {
     var selectedYear = event.target.value
     console.log("Year has changed: "+selectedYear);
+    console.log("this is");
+    console.log(this);
+    console.log("this.state is");
+    console.log(this.state);
     var state = this.state;
+    console.log("state is");
+    console.log(state);
     console.log("setting state.selectedYear");
     state.selectedYear = selectedYear;
     console.log("deleting state.tari.immobili");
@@ -339,21 +344,15 @@ class AppTributi extends React.Component{
     this.getImmobiliIMUTASI();
   };
   
-  changeDataType() {
-    console.log('entered');
-  }
-  
   render(){
     console.log("rendering app tributi");
-    const { selectedYear } = this.state.selectedYear;
+    const { selectedYear } = this.state.selected.value;
     var options = [];
     
-//     for(var i = this.annoCorrente; i>=2012; i--){
-//       options.push({ value: i, label: i });
-//     }
-    
     for(var i = this.annoCorrente; i>=2012; i--){
-      options.push(<option key={i} value={i} >{i}</option>);
+      options.push({ value: i, label: i });
+//       options.push(<option key={i} value={i} >{i}</option>);
+//       options.push(i);
     }
     
     return(
@@ -378,7 +377,7 @@ class AppTributi extends React.Component{
         <div className="tab-content">
         
           <div role="tabpanel" className="tab-pane" id="immobili">
-            <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><select className="form-control" id="yearSelect" >{options}</select></div></h3>
+            <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><Select options={options} onChange={this.changeYear} defaultValue={this.state.selected} /></div></h3>
             <h4>TARI - Tassa Rifiuti</h4>
             {typeof(this.state.tari.immobili) == "undefined" ? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.immobili.length>0 ? <BootstrapTable
                 id="immobiliTari"

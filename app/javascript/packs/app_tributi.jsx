@@ -1,3 +1,5 @@
+window.appType = "external";
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 // import $ from 'jquery';
@@ -8,8 +10,12 @@ import Select from 'react-select';
 import BootstrapTable from 'react-bootstrap-table-next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleNotch } from '@fortawesome/free-solid-svg-icons'
-
 $(document).ready(function(){
+  var $links = $("#topbar").find(".row");
+  $links.find("div").last().remove();
+  $links.find("div").first().removeClass("col-lg-offset-3").removeClass("col-md-offset-3");
+  $links.append('<div class="col-lg-2 col-md-2 text-center"><a href="'+$("#dominio_portale").text()+'/" title="Sezione Privata">CIAO<br>'+$("#nome").text()+'</a></div>');
+  $links.append('<div class="col-lg-1 col-md-1 logout_link"><a href="'+$("#dominio_portale").text()+'/autenticazione/logout" title="Logout"><span class="glyphicon glyphicon-log-out" aria-hidden="true"></span></a></div>');
   $(".tab-pane").hide();
   var $div = $("<div>");
   $("#portal_container").append($div);
@@ -317,27 +323,15 @@ class AppTributi extends React.Component{
     });
   }
   
-  changeYear (newValue)  {
-    var selectedYear = event.target.value
-    console.log("Year has changed: "+selectedYear);
-    console.log("this is");
-    console.log(this);
-    console.log("this.state is");
-    console.log(this.state);
+  changeYear = (selectedYear) =>  {
+//     var selectedYear = event.target.value
     var state = this.state;
-    console.log("state is");
-    console.log(state);
-    console.log("setting state.selectedYear");
     state.selectedYear = selectedYear;
-    console.log("deleting state.tari.immobili");
     delete state.tari.immobili;
-    console.log("deleting state.imu.immobili");
     delete state.imu.immobili;
-    console.log("deleting state.identificativoSoggetto");
+    delete state.tasi.immobili;
     delete state.identificativoSoggetto;
-    console.log("setting state")
     this.setState(state);
-    console.log("state has changed");
     console.log(this.state);
     this.getIdentificativo();
     this.getImmobiliTARI();

@@ -51,6 +51,8 @@ class ApplicationController < ActionController::Base
           jwt_data = JsonWebToken.decode(hash_result['token'])
           session[:user] = jwt_data #uso questo oggetto per capire se utente connesso!
           session[:cf] = jwt_data[:cf]
+          @nome = jwt_data[:nome]
+          @cognome = jwt_data[:cognome]
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
           solo_dom = @dominio.gsub("/portal$","")

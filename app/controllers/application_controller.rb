@@ -28,7 +28,8 @@ class ApplicationController < ActionController::Base
         result_info_ente = HTTParty.get(url_oauth2_get_info,
           :headers => { 'Content-Type' => 'application/json', 'Accept' => 'application/json' } )
         hash_result_info_ente = result_info_ente.parsed_response
-        @dominio = hash_result_info_ente['url_ente'] 
+        @dominio = hash_result_info_ente['url_ente']
+        #@dominio = "https://civilianext.soluzionipa.it/portal" #per test
         session[:dominio] = @dominio
         #creo jwt per avere sessione
         hash_jwt_app = {
@@ -52,7 +53,8 @@ class ApplicationController < ActionController::Base
           session[:cf] = jwt_data[:cf]
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
-          session[:url_stampa] = "#{@dominio.chomp!("portal")}openweb/_ici/imutasi_stampa.php"
+          solo_dom = @dominio.gsub("/portal$","")
+          session[:url_stampa] = "#{solo_dom}/openweb/_ici/imutasi_stampa.php"
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless @dominio.blank?
@@ -102,11 +104,10 @@ class ApplicationController < ActionController::Base
         #Devo iniettare nel layout gli assets e lo yield
         head_da_iniettare = "<%= csrf_meta_tags %>
         <%= csp_meta_tag %>
-        <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>
-        <%= javascript_include_tag 'application', 'data-turbolinks-track': 'reload' %>
-        <%= javascript_pack_tag 'app_tributi' %>"
+        <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>"
         html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><%=yield%>")
-        
+        #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
+        html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")
         # doc_html = Nokogiri::HTML.parse(html_layout)
         # doc_html.at_css("head").add_next_sibling(head_da_iniettare)
         # doc_html.at_css("#portal_container").add_child("<div id=\"tributi_main\"><%=yield%></div>")
@@ -283,12 +284,12 @@ class ApplicationController < ActionController::Base
         datiImmobile = { 
           "rendita": value["rendita"], 
           "validita": stringavalidita,
-          "categoria": !value["categoriaCatastale"].nil? ?value["categoriaCatastale"]["codice"]:'',
-          "aliquota": !value["aliquota"].nil? ?value["aliquota"]["descrizione"]:"#{subCaratteristica}",
+          "categoria": !value["categoriaCatastale"].nil? ? value["categoriaCatastale"]["codice"] : '',
+          "aliquota": !value["aliquota"].nil? ? value["aliquota"]["descrizione"] : "#{subCaratteristica}",
           "catasto": "#{value["listaImmobileTributi"][0]["foglio"]}/#{value["listaImmobileTributi"][0]["numero"]}/#{value["listaImmobileTributi"][0]["subalterno"]}",
           "indirizzo": indirizzo
         }
-        if !value["tipoTitolarita"].nil? && value["tipoTitolarita"].length>0     
+        if !value["tipoTitolarita"].nil? && value["tipoTitolarita"].length > 0     
           datiImmobile['possesso'] = "#{value["percentualePossesso"]}% #{value["tipoTitolarita"]["descrizione"]}"
         end
         riduzioni = []

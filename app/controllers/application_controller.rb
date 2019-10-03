@@ -19,7 +19,7 @@ class ApplicationController < ActionController::Base
     if session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
-      if true && !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+#       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
 
         #ricavo dominio da oauth2
         url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']

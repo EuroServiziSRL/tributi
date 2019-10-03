@@ -17,10 +17,9 @@ class ApplicationController < ActionController::Base
     @numero_anni = 5
   
     if session.blank? || session[:user].blank? #controllo se ho fatto login
-      session[:numero_anni] = @numero_anni
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
-      if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+      if true && !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
 
         #ricavo dominio da oauth2
         url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
@@ -57,6 +56,11 @@ class ApplicationController < ActionController::Base
           # TODO gestire meglio il dominio
           solo_dom = @dominio.gsub("/portal","")
           session[:url_stampa] = "#{solo_dom}/openweb/_ici/imutasi_stampa.php"
+          if !jwt_data[:numero_anni].nil?
+           session[:numero_anni] = jwt_data[:numero_anni]
+          else
+            session[:numero_anni] = @numero_anni
+          end
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless @dominio.blank?

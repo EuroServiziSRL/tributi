@@ -35,7 +35,7 @@ function buttonFormatter(cell,row) {
 } 
 
 class AppTributi extends React.Component{
-  dominio = window.location.protocol+"//"+window.location.hostname+":"+window.location.port;
+  dominio = window.location.protocol+"//"+window.location.hostname+(window.location.port!=""?":"+window.location.port:"");
   numeroAnni = $("#numero_anni").text();
   columns = {
     tari: {

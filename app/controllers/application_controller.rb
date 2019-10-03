@@ -16,7 +16,7 @@ class ApplicationController < ActionController::Base
 #     session[:cf] = "BTTGNN15A30G694R"
     @numero_anni = 5
   
-    if true || session.blank? || session[:user].blank? #controllo se ho fatto login
+    if session.blank? || session[:user].blank? #controllo se ho fatto login
       session[:numero_anni] = @numero_anni
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
@@ -125,7 +125,7 @@ class ApplicationController < ActionController::Base
 #     render :json => session
     render :template => "application/index" , :layout => "layout_portali/#{nome_file}"
     
-#     result = stato_pagamento(3733696)
+#     result = stato_pagamento("#{@dominio.gsub("https","http")}/servizi/pagamenti/ws/stato_pagamenti",3733696)
 #     render :json => result
   end
 
@@ -227,10 +227,10 @@ class ApplicationController < ActionController::Base
       if !result["result"].nil? && result["result"].length>0
         result["result"].each do |value|
           if (value['dataAnnullamento'].blank?) && value["importoResiduo"].gsub(',', '.').to_f>0           
-    
-            statoPagamento = stato_pagamento(value["idAvviso"])
-            
-            if(!statoPagamento.nil? && !statoPagamento[0].nil? && statoPagamento[0]["esito"]=="ok")
+            statoPagamenti = stato_pagamento("#{session[:dominio].gsub("https","http")}/servizi/pagamenti/ws/stato_pagamenti",value["idAvviso"])
+#             statoPagamento = stato_pagamento(value["idAvviso"])
+            # Pagato - Pendente - Da Ricaricare - In Attesa RT - Annullato - Non Eseguito - Decorrenza termini - Eliminato d'Ufficio, Avviato
+            if(!statoPagamenti.nil? && statoPagamenti["esito"]=="ok" && (statoPagamenti["esito"][0]["stato"]=="Pagato"))
               # pagamento ok, non lo mettiamo in lista
             else
               date = DateTime.parse(value["dataAvviso"])
@@ -240,7 +240,7 @@ class ApplicationController < ActionController::Base
                 importo: "#{value["importoResiduo"].gsub(',', '.')}",
                 descrizione: "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]}",
                 codice_applicazione: "istanze", # TODO da cambiare con qualcosa di più appropriato
-                url_back: request.original_url,
+                url_back: request.protocol + request.host_with_port,
                 idext: value["idAvviso"],
                 tipo_elemento: "tari",
                 nome_versante: session[:nome],
@@ -262,8 +262,12 @@ class ApplicationController < ActionController::Base
               qs = fullquerystring.sub(/&hqs=\w*/,"").strip+"3ur0s3rv1z1"
               hqs = OpenSSL::Digest::SHA1.new(qs)
 #               puts "hqs is [#{hqs}]"
+              azioni = "#{session[:dominio]}/servizi/pagamenti/"
+              if(statoPagamenti.nil? || !statoPagamenti["esito"]=="ok")
+                azioni = "#{session[:dominio]}/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"
+              end
               queryString = "#{queryString}&hqs=#{hqs}"
-              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": "#{session[:dominio]}/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"}
+              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": azioni}
             end
           end
         end

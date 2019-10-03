@@ -1,5 +1,3 @@
-window.appType = "external";
-
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 // import $ from 'jquery';
@@ -16,10 +14,7 @@ $(document).ready(function(){
   $links.find("div").first().removeClass("col-lg-offset-3").removeClass("col-md-offset-3");
   $links.append('<div class="col-lg-2 col-md-2 text-center"><a href="'+$("#dominio_portale").text()+'/" title="Sezione Privata">CIAO<br>'+$("#nome").text()+'</a></div>');
   $links.append('<div class="col-lg-1 col-md-1 logout_link"><a href="'+$("#dominio_portale").text()+'/autenticazione/logout" title="Logout"><span class="glyphicon glyphicon-log-out" aria-hidden="true"></span></a></div>');
-  $(".tab-pane").hide();
-  var $div = $("<div>");
-  $("#portal_container").append($div);
-  ReactDOM.render(<AppTributi />, $div[0] );
+  $(".tab-pane").hide();  
   
   $("#immobili").show();
   
@@ -456,4 +451,9 @@ class AppTributi extends React.Component{
     );
   }
 
+}
+
+
+if(document.getElementById('app_tributi_container') !== null){
+  ReactDOM.render(<AppTributi />, document.getElementById('app_tributi_container') );
 }

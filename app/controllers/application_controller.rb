@@ -1,7 +1,7 @@
 require 'httparty'
 require 'uri'
 require "base64"
-require 'digest/sha1'
+require 'openssl'
 
 class ApplicationController < ActionController::Base
   include ApplicationHelper
@@ -15,9 +15,9 @@ class ApplicationController < ActionController::Base
     # TEST
 #     session[:cf] = "BTTGNN15A30G694R"
     @numero_anni = 5
-    session[:numero_anni] = @numero_anni
   
-    if session.blank? || session[:user].blank? #controllo se ho fatto login
+    if true || session.blank? || session[:user].blank? #controllo se ho fatto login
+      session[:numero_anni] = @numero_anni
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
@@ -55,7 +55,7 @@ class ApplicationController < ActionController::Base
           @cognome = jwt_data[:cognome]
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
-          solo_dom = @dominio.gsub("/portal$","")
+          solo_dom = @dominio.gsub("/portal","")
           session[:url_stampa] = "#{solo_dom}/openweb/_ici/imutasi_stampa.php"
         else
           #se ho problemi ritorno su portale con parametro di errore
@@ -124,19 +124,21 @@ class ApplicationController < ActionController::Base
 
 #     render :json => session
     render :template => "application/index" , :layout => "layout_portali/#{nome_file}"
-#     render :template => "application/index" 
+    
+#     result = stato_pagamento(3733696)
+#     render :json => result
   end
 
   
   def sconosciuto
   end
 
-  def authenticate
+  def authenticate  
     params = {
        "targetResource": "#{@@api_resource}", 
-       "tenantId": "1c46d27e-fa3c-4ad4-a1cc-410d55d2feb8",
-       "clientId": "2b1cfbdc-decc-45a2-a215-8a4179ab79f7",
-       "secret": "g*Q[Azfhd_u=Cnrmvl6uaNkxvpxzn184"
+       "tenantId": "#{session[:user]["api_next"]["tenant"]}",
+       "clientId": "#{session[:user]["api_next"]["client_id"]}",
+       "secret": "#{session[:user]["api_next"]["secret"]}"
     }
     result = HTTParty.post("#{@@api_url}utilities/AuthenticationToken?v=1.0", 
     :body => params.to_json,
@@ -233,10 +235,35 @@ class ApplicationController < ActionController::Base
             else
               date = DateTime.parse(value["dataAvviso"])
               formatted_date = date.strftime('%d/%m/%Y')
-              queryString = "importo=#{value["importoResiduo"].gsub(',', '.')}&descrizione=#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]}&codice_applicazione=tributi&url_back=#{request.original_url}&idext=#{value["idAvviso"]}&tipo_elemento=pagamento_tari&nome_versante=#{session[:nome]}&cognome_versante=#{session[:cognome]}&codice_fiscale_versante=#{session[:cf]}&nome_pagatore=#{session[:nome]}&cognome_pagatore=#{session[:cognome]}&codice_fiscale_pagatore=#{session[:cf]}"
-              hqs = Digest::SHA1.hexdigest("#{queryString}3ur0s3rv1z1")
+              
+              parametri = {
+                importo: "#{value["importoResiduo"].gsub(',', '.')}",
+                descrizione: "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]}",
+                codice_applicazione: "istanze", # TODO da cambiare con qualcosa di più appropriato
+                url_back: request.original_url,
+                idext: value["idAvviso"],
+                tipo_elemento: "tari",
+                nome_versante: session[:nome],
+                cognome_versante: session[:cognome],
+                codice_fiscale_versante: session[:cf],
+                nome_pagatore: session[:nome],
+                cognome_pagatore: session[:cognome],
+                codice_fiscale_pagatore: session[:cf]
+              }
+              
+              queryString = [:importo, :descrizione, :codice_applicazione, :url_back, :idext, :tipo_elemento, :nome_versante, :cognome_versante, :codice_fiscale_versante, :nome_pagatore, :cognome_pagatore, :codice_fiscale_pagatore].map{ |chiave|
+                  val = parametri[chiave] 
+                  "#{chiave}=#{val}"
+              }.join('&')
+              
+#               puts "query string for sha1 is [#{queryString.strip}]"
+#               queryString = "importo=#{value["importoResiduo"].gsub(',', '.')}&descrizione=#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]}&codice_applicazione=tributi&url_back=#{request.original_url}&idext=#{value["idAvviso"]}&tipo_elemento=pagamento_tari&nome_versante=#{session[:nome]}&cognome_versante=#{session[:cognome]}&codice_fiscale_versante=#{session[:cf]}&nome_pagatore=#{session[:nome]}&cognome_pagatore=#{session[:cognome]}&codice_fiscale_pagatore=#{session[:cf]}"
+              fullquerystring = URI.unescape(queryString)
+              qs = fullquerystring.sub(/&hqs=\w*/,"").strip+"3ur0s3rv1z1"
+              hqs = OpenSSL::Digest::SHA1.new(qs)
+#               puts "hqs is [#{hqs}]"
               queryString = "#{queryString}&hqs=#{hqs}"
-              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": "#{session[:dominio]}portal/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"}
+              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": "#{session[:dominio]}/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"}
             end
           end
         end

@@ -14,12 +14,12 @@ class ApplicationController < ActionController::Base
     hash_params = params.permit!.to_hash
     # TEST
 #     session[:cf] = "BTTGNN15A30G694R"
-    @numero_anni = 5
+    @numero_anni_default = 2
   
     if session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
-#       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
+      if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
 
         #ricavo dominio da oauth2
         url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
@@ -59,7 +59,7 @@ class ApplicationController < ActionController::Base
           if !jwt_data[:numero_anni].nil?
            session[:numero_anni] = jwt_data[:numero_anni]
           else
-            session[:numero_anni] = @numero_anni
+            session[:numero_anni] = @numero_anni_default
           end
         else
           #se ho problemi ritorno su portale con parametro di errore

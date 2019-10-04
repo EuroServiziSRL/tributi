@@ -16,7 +16,7 @@ class ApplicationController < ActionController::Base
 #     session[:cf] = "BTTGNN15A30G694R"
     @numero_anni_default = 2
   
-    if session.blank? || session[:user].blank? #controllo se ho fatto login
+    if true || session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
@@ -56,11 +56,12 @@ class ApplicationController < ActionController::Base
           # TODO gestire meglio il dominio
           solo_dom = @dominio.gsub("/portal","")
           session[:url_stampa] = "#{solo_dom}/openweb/_ici/imutasi_stampa.php"
-          if !jwt_data[:numero_anni].nil?
-           session[:numero_anni] = jwt_data[:numero_anni]
+          if !jwt_data[:numero_anni].nil? && jwt_data[:numero_anni] != "" && jwt_data[:numero_anni] > 0 
+            session[:numero_anni] = jwt_data[:numero_anni]
           else
             session[:numero_anni] = @numero_anni_default
           end
+          @numero_anni = session[:numero_anni]
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless @dominio.blank?
@@ -107,11 +108,14 @@ class ApplicationController < ActionController::Base
         result = HTTParty.get(@dominio+"/get_html_layout", :body => {})
         hash_result = JSON.parse(result.parsed_response)
         html_layout = Base64.decode64(hash_result['html'])
+        #Aggiungo variabile per disabilitare Function.prototype.bind in portal.x.js
+        js_da_iniettare = '<script type="text/javascript">window.appType = "external";</script>'
         #Devo iniettare nel layout gli assets e lo yield
         head_da_iniettare = "<%= csrf_meta_tags %>
         <%= csp_meta_tag %>
         <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>"
         html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><%=yield%>")
+        html_layout = html_layout.sub("<script",js_da_iniettare+" <script")
         #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
         html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")
         # doc_html = Nokogiri::HTML.parse(html_layout)

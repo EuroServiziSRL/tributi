@@ -1,3 +1,5 @@
+window.appType = "external";
+
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 // import $ from 'jquery';
@@ -126,8 +128,8 @@ class AppTributi extends React.Component{
     console.log("AppTributi did update");
     $("table.table-responsive").each(function(){
       var id = $(this).attr("id");
-      console.log("Calling tableToUl on "+id);
-      tableToUl($("#"+id));
+      //console.log("Calling tableToUl on "+id);
+      //tableToUl($("#"+id));
     });
   }
   
@@ -162,14 +164,21 @@ class AppTributi extends React.Component{
       if(response.hasError) {
         console.log("response error");
       } else {
+	console.log("response result is");
+        console.log(response.result);
         var state = self.state;
         state.identificativoSoggetto = response.result;
         self.setState(state);
-        self.getImmobiliTARI();
-        self.getPagamentiTARI();
-        self.getImmobiliIMUTASI();
-        self.getVersamenti();
-        self.getPagamentiIMUTASI();
+
+	if(response.result!=null) {
+          console.log("result not null, fetching other data");
+          self.setState(state);
+          self.getImmobiliTARI();
+          self.getPagamentiTARI();
+          self.getImmobiliIMUTASI();
+          self.getVersamenti();
+          self.getPagamentiIMUTASI();
+        }
       }
     }).fail(function(response) {
       console.log("identificativo fail!");
@@ -325,9 +334,10 @@ class AppTributi extends React.Component{
 //       options.push(<option key={i} value={i} >{i}</option>);
 //       options.push(i);
     }
-    
-    return(
-      <div itemID="app_tributi">
+
+    var returnVal = <div className="alert alert-warning">Dati contribuente non presenti nel sistema</div>
+    if(this.state.identificativoSoggetto!=null) {
+      returnVal =       <div itemID="app_tributi">
         <h4>Dati contribuente</h4>
         {this.state.identificativoSoggetto?
           <ul>
@@ -429,7 +439,10 @@ class AppTributi extends React.Component{
           </div>
         
         </div>
-      </div>
+      </div>     
+    }
+    
+    return(returnVal
     );
   }
 

@@ -15,6 +15,10 @@ class ApplicationController < ActionController::Base
     # TEST
 #     session[:cf] = "BTTGNN15A30G694R"
     @numero_anni_default = 2
+
+    if !hash_params['c_id'].blank? && session[:client_id] != hash_params['c_id']
+      reset_session
+    end
   
     if true || session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
@@ -115,7 +119,7 @@ class ApplicationController < ActionController::Base
         <%= csp_meta_tag %>
         <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>"
         html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><%=yield%>")
-        html_layout = html_layout.sub("<script",js_da_iniettare+" <script")
+        html_layout = html_layout.gsub("<head>","<head> "+js_da_iniettare)
         #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
         html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")
         # doc_html = Nokogiri::HTML.parse(html_layout)

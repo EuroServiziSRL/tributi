@@ -118,7 +118,7 @@ class ApplicationController < ActionController::Base
         head_da_iniettare = "<%= csrf_meta_tags %>
         <%= csp_meta_tag %>
         <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>"
-        html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><%=yield%>")
+        html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><h2>Consultazione posizione IUC</h2><%=yield%><div class=\"bottoni_pagina\"><div class=\"row\"><div class=\"col-lg-6 col-md-6 col-sm-12 col-xs-12\"><div class=\"back\"><a class=\"btn\" href=\"#{@dominio}\">Torna al portale</a></div></div></div></div>")
         html_layout = html_layout.gsub("<head>","<head> "+js_da_iniettare)
         #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
         html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")

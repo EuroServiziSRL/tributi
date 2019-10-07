@@ -37,7 +37,7 @@ class AppTributi extends React.Component{
         { dataField: "importoEmesso", text: "Importo emesso" },
         { dataField: "importoPagato", text: "Importo pagato" },
         { dataField: "importoResiduo", text: "Importo da pagare" },
-        { dataField: "azioni", text: "Azioni", formatter: buttonFormatter },
+        /*{ dataField: "azioni", text: "Azioni", formatter: buttonFormatter },*/ // commentato fino al 2020
       ],      
     },
     imutasi: {
@@ -86,36 +86,6 @@ class AppTributi extends React.Component{
   constructor(props){
     super(props);
     
-//     this.auth = {
-//       "targetResource": "http://api.civilianextdev.it", // API URL è in application controller!!!
-//       "tenantId": "6296a508-1cf0-4210-a27b-4abaa2151193",
-//       "clientId" :"01c271b4-da93-4bf0-a5cc-e7a1b1b107b9",
-//       "secret":"JXDnrWwklQpS9TTTJMUxSMCh4pPoAyRL9wNBrlzWtxs="
-//     };
-/*    this.auth = {
-      "targetResource": "http://api.civilianext.it",
-      "tenantId": "1c46d27e-fa3c-4ad4-a1cc-410d55d2feb8",
-      "clientId" :"8071e7a8-6423-48a2-a208-b6d16e86fdad",
-      "secret":"MGGbYjQHFqnee48TJRffvYEJY+XgmXZv5xNa0Tz7e5E="
-    }; */ 
-
-// piovene rocchette
-//     this.auth = {
-//       "targetResource": "http://api.civilianext.it", // API URL è in application controller!!!
-//       "tenantId": "1c46d27e-fa3c-4ad4-a1cc-410d55d2feb8",
-//       "clientId" :"2b1cfbdc-decc-45a2-a215-8a4179ab79f7",
-//       "secret":"g*Q[Azfhd_u=Cnrmvl6uaNkxvpxzn184"
-//     };
-
-
-// ascoli piceno
-//     this.auth = {
-//       "targetResource": "http://api.civilianext.it", // API URL è in application controller!!!
-//       "tenantId": "9115f769-3f1d-485c-891e-b9eb578e2ca6",
-//       "clientId" :"8f9b3b9a-b821-459f-baef-e3087a320a48",
-//       "secret":"ww8-649ng.US.nZ*nT]1L49V@0SwrYy+"
-//     };
-
     this.selectAnni = React.createRef();
     this.annoCorrente = new Date().getFullYear();
     this.state.selected = { value: this.annoCorrente, label: this.annoCorrente };
@@ -316,7 +286,7 @@ class AppTributi extends React.Component{
     delete state.tari.immobili;
     delete state.imu.immobili;
     delete state.tasi.immobili;
-    delete state.identificativoSoggetto;
+    //delete state.identificativoSoggetto;
     this.setState(state);
     console.log(this.state);
     this.getIdentificativo();
@@ -442,8 +412,7 @@ class AppTributi extends React.Component{
       </div>     
     }
     
-    return(returnVal
-    );
+    return(returnVal);
   }
 
 }

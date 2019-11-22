@@ -98,8 +98,10 @@ class AppTributi extends React.Component{
     console.log("AppTributi did update");
     $("table.table-responsive").each(function(){
       var id = $(this).attr("id");
-      //console.log("Calling tableToUl on "+id);
-      //tableToUl($("#"+id));
+      if(typeof(tableToUl) === "function" && typeof($('li.table-header').css("font-weight"))!="undefined") {
+        console.log("Calling tableToUl on "+id);
+        tableToUl($("#"+id));
+      } else  { console.log("tableToUl is not a function ("+typeof(tableToUl)+") or no css available for responsive tables"); } 
     });
   }
   
@@ -250,9 +252,9 @@ class AppTributi extends React.Component{
         console.log("response error");
       } else {
         var state = self.state;
-        for (var i in response.tabella) {
+        /*for (var i in response.tabella) {
           if(response.tabella[i].totaleImportoDovuto == 0){delete response.tabella[i];}
-        }
+        }*/
         state.imu.pagamenti = response;
         self.setState(state);
       }
@@ -267,9 +269,9 @@ class AppTributi extends React.Component{
         console.log("response error");
       } else {
         var state = self.state;
-        for (var i in response.tabella) {
+        /*for (var i in response.tabella) {
           if(response.tabella[i].totaleImportoDovuto == 0){delete response.tabella[i];}
-        }
+        }*/
         state.tasi.pagamenti = response;
         self.setState(state);
       }

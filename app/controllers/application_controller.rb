@@ -5,7 +5,7 @@ require 'openssl'
 
 class ApplicationController < ActionController::Base
   include ApplicationHelper
-  @@api_resource = "http://api.civilianext.it"
+  @@api_resource = "https://api.civilianext.it"
   @@api_url = "#{@@api_resource}/Tributi/api/"
   
   #ROOT della main_app
@@ -147,11 +147,12 @@ class ApplicationController < ActionController::Base
 
   def authenticate  
     params = {
-       "targetResource": "#{@@api_resource}", 
+       "targetResource": "#{@@api_resource.sub("https","http")}", 
        "tenantId": "#{session[:user]["api_next"]["tenant"]}",
        "clientId": "#{session[:user]["api_next"]["client_id"]}",
        "secret": "#{session[:user]["api_next"]["secret"]}"
     }
+    #logger.debug params
     result = HTTParty.post("#{@@api_url}utilities/AuthenticationToken?v=1.0", 
     :body => params.to_json,
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json'  } )
@@ -223,6 +224,7 @@ class ApplicationController < ActionController::Base
         tabellaTasi << datiImmobile
       end
     end
+    tabellaTasi = tabellaTasi.sort_by { |hsh| hsh[:catasto] }
     
     render :json => tabellaTasi    
   end
@@ -322,7 +324,7 @@ class ApplicationController < ActionController::Base
         indirizzo = "";
         if !value["listaImmobileTributi"][0]["indirizzo"].nil? && value["listaImmobileTributi"][0]["indirizzo"]!=""
           indirizzo = value["listaImmobileTributi"][0]["indirizzo"]
-        else
+        elsif !value["listaImmobileTributi"][0]["unitaAbitativa"].nil? && !value["listaImmobileTributi"][0]["unitaAbitativa"].blank?
           indirizzo = "#{value["listaImmobileTributi"][0]["unitaAbitativa"]["numeroCivicoEsterno"]["strada"]["toponimo"]["descrizione"]} #{value["listaImmobileTributi"][0]["unitaAbitativa"]["numeroCivicoEsterno"]["strada"]["denominazione"]} #{value["listaImmobileTributi"][0]["unitaAbitativa"]["numeroCivicoEsterno"]["numero"]}"
         end
           
@@ -359,7 +361,8 @@ class ApplicationController < ActionController::Base
         counterImu = counterImu+1
       end
     end
-    
+    tabellaImu = tabellaImu.sort_by { |hsh| hsh[:catasto] }
+    tabellaTasi = tabellaTasi.sort_by { |hsh| hsh[:catasto] }
     
     render :json => {"imu": tabellaImu, "tasi": tabellaTasi}
   end
@@ -395,20 +398,21 @@ class ApplicationController < ActionController::Base
       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}",
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
     
-      if result.is_a?(Array) && !result["result"].nil? && result["result"].length>0
+      #if result.is_a?(Array) && !result["result"].nil? && result["result"].length>0
+      if !result["result"].nil? && result["result"].length>0
         result["result"].each do |value|
           tabellaImu << {
-            "imposta": value["desImposta"],
-            "dataVersamento": value["dataRiscossione"],
-            "annoRiferimento": value["annoRiferimento"],
+            "imposta": value["modulo"],
+            "dataVersamento": value["dataPagamento"],
+            "annoRiferimento": value["anno"],
             "tipo": value["tipoVersamento"],
-            "codiceTributo": value["codiceTributo"],
-            "acconto": value["acconto"],
-            "saldo": value["saldo"],
-            "detrazione": value["detrazione"],
-            "totale": value["importoDebito"],
+            "codiceTributo": value["codiceTributoF24"],
+            "acconto": value["dettaglioRata"]=="1"?"Si":"",
+            "saldo": value["dettaglioRata"]=="2"?"Si":"",
+            "detrazione": value["importoDetrazione"],
+            "totale": value["importo"],
             "ravvedimento": value["ravvedimento"],
-            "violazione": value["violazione"]
+	    "violazione": value["violazione"]=="false"?"Si":""
           }
         end
       end
@@ -421,7 +425,7 @@ class ApplicationController < ActionController::Base
           tabellaImu << {
             "imposta": value["desImposta"],
             "dataVersamento": value["dataPagamento"],
-            "annoRiferimento": value["anno"],
+            "annoRiferimento": value["anno"].strip.to_i,
             "tipo": value["canale"],
             "codiceTributo": value["codiceTributo"],
             "acconto": value["codiceRata"],
@@ -434,7 +438,9 @@ class ApplicationController < ActionController::Base
         end
       end            
       
-    end 
+    end
+
+    tabellaImu = tabellaImu.sort_by { |hsh| hsh[:annoRiferimento] }.reverse
     
     render :json => tabellaImu    
   end
@@ -498,8 +504,12 @@ class ApplicationController < ActionController::Base
       
       if !result["result"].nil? && result["result"].length>0        
         
-        result["result"].each do |value|
+        result["result"].each_with_index do |value, i|
           totale = value["totaleImportoDovuto"].gsub(',', '.').to_f
+          importoNonZero = value["totaleImportoDovuto"].gsub(',', '.').to_f > 0
+          compensaSaldo = value["rata"]=="Acconto" && !result["result"][i+1].nil? && result["result"][i+1]["rata"]=="Saldo" && result["result"][i+1]["importoVersato"].gsub(',', '.').to_f > result["result"][i+1]["importoVersatoConsiderato"].gsub(',', '.').to_f
+          log = log+"[importoNonZero:#{importoNonZero},value-rata:#{value["rata"]},result+1:#{!result["result"][i+1].nil?}]"
+
 #           datiF24 = { 
 #             "anno": anno, 
 #             "rata": value["rata"], 
@@ -508,7 +518,7 @@ class ApplicationController < ActionController::Base
 #             "numeroImmobili": value["numeroImmobili"], 
 #           }
 #           tabellaImu << datiF24
-          if totale>0
+          if importoNonZero || compensaSaldo
     
             listaF24[anno] = strutturaF24
             stringaTributo = codiciTributo[value["codiceTributo"]]
@@ -528,7 +538,7 @@ class ApplicationController < ActionController::Base
               listaF24[anno]["Unica"][stringaTributo] = 0
             end
             if !value["rata"].nil? && !listaF24.nil? && !listaF24[anno][value["rata"]].nil?
-              if value["totaleImportoDovuto"].gsub(',', '.').to_f > 0
+              if importoNonZero || compensaSaldo
                 listaF24[anno][value["rata"]]["totale"] += totale
                 listaF24[anno][value["rata"]]["totaleRavv"] += totale
                 listaF24[anno]["Unica"]["totaleRavv"] += totale
@@ -541,7 +551,7 @@ class ApplicationController < ActionController::Base
                 listaF24[anno][value["rata"]]["num"] += value["numeroImmobili"]
                 listaF24[anno][value["rata"]]["det"] += value["detrazioneUtilizzata"].gsub(',', '.').to_f
                 listaF24[anno][value["rata"]]["dovuto"] += value["totaleImportoDovuto"].gsub(',', '.').to_f
-                listaF24[anno][value["rata"]]["versato"] += value["importoVersato"].gsub(',', '.').to_f
+                listaF24[anno][value["rata"]]["versato"] += value["importoVersatoConsiderato"].gsub(',', '.').to_f
                 listaF24[anno][value["rata"]]["dovutoPre"] += value["importoDovuto"].gsub(',', '.').to_f
                 listaF24[anno]["Unica"]["totale"] += totale
                 if value["rata"] == "Acconto" 
@@ -551,12 +561,12 @@ class ApplicationController < ActionController::Base
               
                 listaF24[anno]["Unica"][stringaTributo] += totale
               else 
-                log = log + "Deleting #{value["rata"]} from #{anno}|";
+                log = log + "Deleting #{value["rata"]} from #{anno} (564)|";
                 listaF24[anno].tap { |hs| hs.delete(value["rata"]) }
               end
             end
           else
-            log = log + "Deleting #{value["rata"]} from #{anno}|";
+            log = log + "Deleting #{value["rata"]} from #{anno} (568)|";
             listaF24[anno].tap { |hs| (!hs.nil? && !hs[value["rata"]].nil?) ? hs.delete(value["rata"]) : next }
           end
         end      

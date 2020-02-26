@@ -103,11 +103,15 @@ class ApplicationController < ActionController::Base
       ritornato_hash = true
     else
       logger.error "Portale cittadino #{@dominio} non raggiungibile per ottenere hash di layout! Rifaccio chiamata per possibili problemi con Single Thread"
-      result = HTTParty.get(@dominio+"/get_hash_layout.json", 
-        :body => {})
-      hash_result = result.parsed_response
-      if hash_result['esito'] == 'ok'
-        ritornato_hash = true
+      i = 0
+      while ritornato_hash == false && i < 10 
+        sleep 1
+        result = HTTParty.get(@dominio+"/get_hash_layout.json", 
+          :body => {})
+        hash_result = result.parsed_response
+        if hash_result['esito'] == 'ok'
+          ritornato_hash = true
+        end
       end
     end  
 
@@ -141,11 +145,10 @@ class ApplicationController < ActionController::Base
             path_dir_layout = "#{Rails.root}/app/views/layouts/layout_portali/"
             File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
         end
+    else
+      redirect_to @dominio+"/?err=no_hash"
+    
     end
-
-
-
-
 
 #     render :json => session
     render :template => "application/index" , :layout => "layout_portali/#{nome_file}"

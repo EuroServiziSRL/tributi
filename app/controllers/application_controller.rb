@@ -44,7 +44,7 @@ class ApplicationController < ActionController::Base
         }
         jwt = JsonWebToken.encode(hash_jwt_app)
         #richiesta in post a get_login_session con authorization bearer
-        result = HTTParty.post(@dominio+"/autenticazione/get_login_session", 
+        result = HTTParty.post(@dominio+"/autenticazione/get_login_session.json", 
           :body => hash_params,
           :headers => { 'Authorization' => 'Bearer '+jwt } )
         hash_result = result.parsed_response
@@ -95,7 +95,7 @@ class ApplicationController < ActionController::Base
     #carico cf in variabile per usarla sulla view
     @cf_utente_loggato = session[:cf]
     #ricavo l'hash del layout
-    result = HTTParty.get(@dominio+"/get_hash_layout", 
+    result = HTTParty.get(@dominio+"/get_hash_layout.json", 
       :body => {})
     hash_result = JSON.parse(result.parsed_response)
     ritornato_hash = false
@@ -103,7 +103,7 @@ class ApplicationController < ActionController::Base
       ritornato_hash = true
     else
       logger.error "Portale cittadino #{@dominio} non raggiungibile per ottenere hash di layout! Rifaccio chiamata per possibili problemi con Single Thread"
-      result = HTTParty.get(@dominio+"/get_hash_layout", 
+      result = HTTParty.get(@dominio+"/get_hash_layout.json", 
         :body => {})
       hash_result = JSON.parse(result.parsed_response)
       if hash_result['esito'] == 'ok'
@@ -122,7 +122,7 @@ class ApplicationController < ActionController::Base
               File.delete(vecchio_layout) 
             }
             #richiedo il layout dal portale, questa non dovrebbe avere problemi di single thread in quanto va a prendere html da sessione sul portale
-            result = HTTParty.get(@dominio+"/get_html_layout", :body => {})
+            result = HTTParty.get(@dominio+"/get_html_layout.json", :body => {})
             hash_result = JSON.parse(result.parsed_response)
             html_layout = Base64.decode64(hash_result['html'])
             #Aggiungo variabile per disabilitare Function.prototype.bind in portal.x.js

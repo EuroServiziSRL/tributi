@@ -15,11 +15,11 @@ class ApplicationController < ActionController::Base
     # TEST
 #     session[:cf] = "BTTGNN15A30G694R"
     @numero_anni_default = 2
-
+  
     if !hash_params['c_id'].blank? && session[:client_id] != hash_params['c_id']
       reset_session
     end
-  
+
     if true || session.blank? || session[:user].blank? #controllo se ho fatto login
       #se ho la sessione vuota devo ottenere una sessione dal portale
       #se arriva un client_id (parametro c_id) e id_utente lo uso per richiedere sessione
@@ -112,35 +112,35 @@ class ApplicationController < ActionController::Base
     end  
 
     if ritornato_hash
-      hash_layout = hash_result['hash']
-      nome_file = "#{session[:client_id]}_#{hash_layout}.html.erb"
-      #cerco if file di layout se presente uso quello
-      if Dir["#{Rails.root}/app/views/layouts/layout_portali/#{session[:client_id]}_#{hash_layout}.*"].length == 0
-        #scrivo il file
-        #cancello i vecchi file con stesso client_id (della stesa installazione)
-        Dir["#{Rails.root}/app/views/layouts/layout_portali/#{session[:client_id]}_*"].each{ |vecchio_layout|
-          File.delete(vecchio_layout) 
-        }
-        #richiedo il layout dal portale
-        result = HTTParty.get(@dominio+"/get_html_layout", :body => {})
-        hash_result = JSON.parse(result.parsed_response)
-        html_layout = Base64.decode64(hash_result['html'])
-        #Aggiungo variabile per disabilitare Function.prototype.bind in portal.x.js
-        js_da_iniettare = '<script type="text/javascript">window.appType = "external";</script>'
-        #Devo iniettare nel layout gli assets e lo yield
-        head_da_iniettare = "<%= csrf_meta_tags %>
-        <%= csp_meta_tag %>
-        <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>"
-        html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><h2>Consultazione posizione IUC</h2><%=yield%><div class=\"bottoni_pagina\"><div class=\"row\"><div class=\"col-lg-6 col-md-6 col-sm-12 col-xs-12\"><div class=\"back\"><a class=\"btn\" href=\"#{@dominio}\">Torna al portale</a></div></div></div></div>")
-        html_layout = html_layout.gsub("<head>","<head> "+js_da_iniettare)
-        #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
-        html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")
-        # doc_html = Nokogiri::HTML.parse(html_layout)
-        # doc_html.at_css("head").add_next_sibling(head_da_iniettare)
-        # doc_html.at_css("#portal_container").add_child("<div id=\"tributi_main\"><%=yield%></div>")
-        path_dir_layout = "#{Rails.root}/app/views/layouts/layout_portali/"
-        File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
-      end
+        hash_layout = hash_result['hash']
+        nome_file = "#{session[:client_id]}_#{hash_layout}.html.erb"
+        #cerco if file di layout se presente uso quello
+        if Dir["#{Rails.root}/app/views/layouts/layout_portali/#{session[:client_id]}_#{hash_layout}.*"].length == 0
+            #scrivo il file
+            #cancello i vecchi file con stesso client_id (della stesa installazione)
+            Dir["#{Rails.root}/app/views/layouts/layout_portali/#{session[:client_id]}_*"].each{ |vecchio_layout|
+              File.delete(vecchio_layout) 
+            }
+            #richiedo il layout dal portale, questa non dovrebbe avere problemi di single thread in quanto va a prendere html da sessione sul portale
+            result = HTTParty.get(@dominio+"/get_html_layout", :body => {})
+            hash_result = JSON.parse(result.parsed_response)
+            html_layout = Base64.decode64(hash_result['html'])
+            #Aggiungo variabile per disabilitare Function.prototype.bind in portal.x.js
+            js_da_iniettare = '<script type="text/javascript">window.appType = "external";</script>'
+            #Devo iniettare nel layout gli assets e lo yield
+            head_da_iniettare = "<%= csrf_meta_tags %>
+            <%= csp_meta_tag %>
+            <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track': 'reload' %>"
+            html_layout = html_layout.gsub("</head>", head_da_iniettare+"</head>").gsub("id=\"portal_container\">", "id=\"portal_container\"><%=yield%>")
+            html_layout = html_layout.sub("<script",js_da_iniettare+" <script")
+            #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
+            html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")
+            # doc_html = Nokogiri::HTML.parse(html_layout)
+            # doc_html.at_css("head").add_next_sibling(head_da_iniettare)
+            # doc_html.at_css("#portal_container").add_child("<div id=\"tributi_main\"><%=yield%></div>")
+            path_dir_layout = "#{Rails.root}/app/views/layouts/layout_portali/"
+            File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
+        end
     end
 
 

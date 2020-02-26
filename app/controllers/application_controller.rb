@@ -50,7 +50,7 @@ class ApplicationController < ActionController::Base
           jwt_data = JsonWebToken.decode(hash_result['token'])
           session[:user] = jwt_data #uso questo oggetto per capire se utente connesso!
           session[:cf] = jwt_data[:cf]
-          @nome = jwt_data[:nome]
+          @nome = jwt_data[:nome] 
           @cognome = jwt_data[:cognome]
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
@@ -94,7 +94,20 @@ class ApplicationController < ActionController::Base
     result = HTTParty.get(@dominio+"/get_hash_layout", 
       :body => {})
     hash_result = JSON.parse(result.parsed_response)
+    ritornato_hash = false
     if hash_result['esito'] == 'ok'
+      ritornato_hash = true
+    else
+      logger.error "Portale cittadino #{@dominio} non raggiungibile per ottenere hash di layout! Rifaccio chiamata per possibili problemi con Single Thread"
+      result = HTTParty.get(@dominio+"/get_hash_layout", 
+        :body => {})
+      hash_result = JSON.parse(result.parsed_response)
+      if hash_result['esito'] == 'ok'
+        ritornato_hash = true
+      end
+    end  
+
+    if ritornato_hash
       hash_layout = hash_result['hash']
       nome_file = "#{session[:client_id]}_#{hash_layout}.html.erb"
       #cerco if file di layout se presente uso quello
@@ -121,14 +134,14 @@ class ApplicationController < ActionController::Base
         # doc_html = Nokogiri::HTML.parse(html_layout)
         # doc_html.at_css("head").add_next_sibling(head_da_iniettare)
         # doc_html.at_css("#portal_container").add_child("<div id=\"tributi_main\"><%=yield%></div>")
-
-
         path_dir_layout = "#{Rails.root}/app/views/layouts/layout_portali/"
         File.open(path_dir_layout+nome_file, "w") { |file| file.puts html_layout.force_encoding(Encoding::UTF_8).encode(Encoding::UTF_8) }
       end
-    else
-      logger.error "Portale cittadino #{@dominio} non raggiungibile per ottenere hash di layout!"
-    end  
+    end
+
+
+
+
 
 #     render :json => session
     render :template => "application/index" , :layout => "layout_portali/#{nome_file}"

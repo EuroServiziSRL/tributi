@@ -386,26 +386,28 @@ class ApplicationController < ActionController::Base
   def versamenti
     tabellaImu = [] 
       
-    result = HTTParty.get("#{@@api_url}versamentiF24/GetVersamentiF24?v=1.0&codiceFiscale=#{session[:cf]}",
-    :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
+    # commentato perchè su albignasego restituiva valori doppi (presenti anche su versamentiTributi/GetVersamenti)
+    #
+    # result = HTTParty.get("#{@@api_url}versamentiF24/GetVersamentiF24?v=1.0&codiceFiscale=#{session[:cf]}",
+    # :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
   
-    if !result["result"].nil? && result["result"].length>0
-      result["result"].each do |value|
-        tabellaImu << {
-          "imposta": value["desImposta"],
-          "dataVersamento": value["dataRiscossione"],
-          "annoRiferimento": value["annoRiferimento"],
-          "tipo": "F24",
-          "codiceTributo": value["codiceTributo"],
-          "acconto": value["acconto"],
-          "saldo": value["saldo"],
-          "detrazione": value["detrazione"],
-          "totale": value["importoDebito"],
-          "ravvedimento": value["ravvedimento"],
-          "violazione": value["violazione"]
-        }
-      end
-    end
+    # if !result["result"].nil? && result["result"].length>0
+    #   result["result"].each do |value|
+    #     tabellaImu << {
+    #       "imposta": value["desImposta"],
+    #       "dataVersamento": value["dataRiscossione"],
+    #       "annoRiferimento": value["annoRiferimento"],
+    #       "tipo": "F24",
+    #       "codiceTributo": value["codiceTributo"],
+    #       "acconto": value["acconto"],
+    #       "saldo": value["saldo"],
+    #       "detrazione": value["detrazione"],
+    #       "totale": value["importoDebito"],
+    #       "ravvedimento": value["ravvedimento"],
+    #       "violazione": value["violazione"]
+    #     }
+    #   end
+    # end
     
     for anno in 2012..Date.current.year do
       # serve davvero farlo una volta per imposta? verificare con dati reali
@@ -417,18 +419,23 @@ class ApplicationController < ActionController::Base
       #if result.is_a?(Array) && !result["result"].nil? && result["result"].length>0
       if !result["result"].nil? && result["result"].length>0
         result["result"].each do |value|
+          nomerata = ""
+          if !value["rata"].blank?
+            nomerata = value["rata"]=="1" ? "Acconto" : "Saldo" 
+          else
+            nomerata = value["dettaglioRata"]
+          end
           tabellaImu << {
             "imposta": value["modulo"],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"],
             "tipo": value["tipoVersamento"],
             "codiceTributo": value["codiceTributoF24"],
-            "acconto": value["dettaglioRata"]=="1"?"Si":"",
-            "saldo": value["dettaglioRata"]=="2"?"Si":"",
+            "rata": nomerata,
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
             "ravvedimento": value["ravvedimento"],
-	    "violazione": value["violazione"]=="false"?"Si":""
+	          "violazione": value["violazione"]=="false"?"Si":""
           }
         end
       end
@@ -444,8 +451,7 @@ class ApplicationController < ActionController::Base
             "annoRiferimento": value["anno"].strip.to_i,
             "tipo": value["canale"],
             "codiceTributo": value["codiceTributo"],
-            "acconto": value["codiceRata"],
-            "saldo": value["codiceRata"],
+            "rata": value["codiceRata"],
             "detrazione": 0,
             "totale": value["importo"],
             "ravvedimento": value["ravvedimento"],

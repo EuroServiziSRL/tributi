@@ -385,6 +385,7 @@ class ApplicationController < ActionController::Base
   
   def versamenti
     tabellaImu = [] 
+    counterVersamenti = 1
       
     # commentato perchè su albignasego restituiva valori doppi (presenti anche su versamentiTributi/GetVersamenti)
     #
@@ -428,6 +429,7 @@ class ApplicationController < ActionController::Base
             nomerata = value["dettaglioRata"]
           end
           tabellaImu << {
+            "id": counterVersamenti,
             "imposta": value["modulo"],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"],
@@ -437,8 +439,9 @@ class ApplicationController < ActionController::Base
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
             "ravvedimento": value["rrOo"],
-	    "violazione": value["violazione"]=="false"?"Si":""
+	          "violazione": value["violazione"]=="false"?"Si":""
           }
+          counterVersamenti = counterVersamenti+1
         end
       end
       
@@ -664,7 +667,8 @@ class ApplicationController < ActionController::Base
 #     urls = {"acconto":"#{session[:url_stampa]}?rata=acconto&acconto=true&#{url_stampa}", "saldo":"#{session[:url_stampa]}?rata=saldo&saldo=true&#{url_stampa}"}
     
 #     render :json => {"tabella": tabellaImu, "urls": urls, "listaF24": listaF24}
-    render :json => {"log": log, "tabella": tabellaImu, "listaF24": listaF24, "results": results}
+    # render :json => {"log": log, "tabella": tabellaImu, "listaF24": listaF24, "results": results}
+    render :json => {"tabella": tabellaImu, "listaF24": listaF24}
 #     render :json => {"tabella": tabellaImu, "listaF24": listaF24}
   end
   

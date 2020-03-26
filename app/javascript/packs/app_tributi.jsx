@@ -18,6 +18,19 @@ function buttonFormatter(cell,row) {
   return  <a href={cell} target="_blank" className="btn btn-default">{label}</a>;
 } 
 
+function numberFormatter(cell, row) {
+  console.log(cell);
+  var formatted = cell;
+  if(!isNaN(cell)) {
+    try {
+      formatted = Number(cell).toLocaleString('it', { minimumFractionDigits: 2 })
+    } catch(e) {
+      // ignore errors
+    }
+  }
+  return <span>{formatted}&euro;</span>;
+}
+
 class AppTributi extends React.Component{
   dominio = window.location.protocol+"//"+window.location.hostname+(window.location.port!=""?":"+window.location.port:"");
   numeroAnni = $("#numero_anni").text();
@@ -34,9 +47,9 @@ class AppTributi extends React.Component{
       ],
       pagamenti: [
         { dataField: "descrizioneAvviso", text: "Descrizione avviso" },
-        { dataField: "importoEmesso", text: "Importo emesso" },
-        { dataField: "importoPagato", text: "Importo pagato" },
-        { dataField: "importoResiduo", text: "Importo da pagare" },
+        { dataField: "importoEmesso", text: "Importo emesso", formatter: numberFormatter },
+        { dataField: "importoPagato", text: "Importo pagato", formatter: numberFormatter },
+        { dataField: "importoResiduo", text: "Importo da pagare", formatter: numberFormatter },
         /*{ dataField: "azioni", text: "Azioni", formatter: buttonFormatter },*/ // commentato fino al 2020
       ],      
     },
@@ -45,7 +58,7 @@ class AppTributi extends React.Component{
         { dataField: "indirizzo", text: "Indirizzo" },
         { dataField: "catasto", text: "Catasto" },
         { dataField: "categoria", text: "Categoria" },
-        { dataField: "rendita", text: "Rendita" },
+        { dataField: "rendita", text: "Rendita", formatter: numberFormatter },
         { dataField: "possesso", text: "Titolo di possesso" },
         { dataField: "riduzioni", text: "Riduzioni applicate" },
         { dataField: "aliquota", text: "Aliquota" },
@@ -54,9 +67,9 @@ class AppTributi extends React.Component{
       pagamenti: [
         { dataField: "anno", text: "Anno" },
         { dataField: "rata", text: "Rata" },
-        { dataField: "importoDovuto", text: "Importo dovuto" },
-        { dataField: "importoVersato", text: "Importo versato" },
-        { dataField: "totaleImportoDovuto", text: "Totale dovuto" },
+        { dataField: "importoDovuto", text: "Importo dovuto", formatter: numberFormatter },
+        { dataField: "importoVersato", text: "Importo versato", formatter: numberFormatter },
+        { dataField: "totaleImportoDovuto", text: "Totale dovuto", formatter: numberFormatter },
         { dataField: "numeroImmobili", text: "N. immobili" },
         { dataField: "azioni", text: "Azioni", formatter: buttonFormatter },
       ],    
@@ -68,8 +81,8 @@ class AppTributi extends React.Component{
       { dataField: "annoRiferimento", text: "Anno riferimento" },
       { dataField: "codiceTributo", text: "Codice tributo" },
       { dataField: "rata", text: "Rata" },
-      { dataField: "detrazione", text: "Detrazione" },
-      { dataField: "totale", text: "Totale" },
+      { dataField: "detrazione", text: "Detrazione", formatter: numberFormatter  },
+      { dataField: "totale", text: "Totale", formatter: numberFormatter },
       { dataField: "ravvedimento", text: "Ravvedimento" },
       { dataField: "violazione", text: "Violazione" },
     ]
@@ -95,11 +108,20 @@ class AppTributi extends React.Component{
   componentDidUpdate(prevProps, prevState, snapshot) {
     
     console.log("AppTributi did update");
+    var canBeResponsive = true;
+    if($('li.table-header').length==0) {
+      $('<li class="table-header">').appendTo("body");
+      canBeResponsive = typeof(tableToUl) === "function" && typeof($('li.table-header').css("font-weight"))!="undefined";
+      $('li.table-header').remove();
+    } 
     $("table.table-responsive").each(function(){
       var id = $(this).attr("id");
-      if(typeof(tableToUl) === "function" && typeof($('li.table-header').css("font-weight"))!="undefined") {
+      if(canBeResponsive) {
         console.log("Calling tableToUl on "+id);
         tableToUl($("#"+id));
+        if($(this).attr("id")=="immobiliImu" || $(this).attr("id")=="immobiliTasi" || $(this).attr("id")=="immobiliTari") {
+          $("#"+$(this).attr("id")+" li div:nth-of-type(1)").attr("class","cell-wide-4");
+        }
       } else  { console.log("tableToUl is not a function ("+typeof(tableToUl)+") or no css available for responsive tables"); } 
     });
   }
@@ -366,7 +388,7 @@ class AppTributi extends React.Component{
             <h3>Elenco versamenti per gli anni 2012 - {this.annoCorrente}</h3>
             {typeof(this.state.versamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.versamenti.length>0 ? <BootstrapTable
                 id="versamenti"
-                keyField={"totale"}
+                keyField={"id"}
                 data={this.state.versamenti}
                 columns={this.columns.versamenti}
                 classes="table-responsive"

@@ -420,8 +420,10 @@ class ApplicationController < ActionController::Base
       if !result["result"].nil? && result["result"].length>0
         result["result"].each do |value|
           nomerata = ""
-          if !value["rata"].blank?
-            nomerata = value["rata"]=="1" ? "Acconto" : "Saldo" 
+          if !value["rata"].blank? && value["rata"]==1
+            nomerata = "Acconto" 
+          elsif !value["rata"].blank? && value["rata"]==2
+            nomerata = "Saldo" 
           else
             nomerata = value["dettaglioRata"]
           end
@@ -434,8 +436,8 @@ class ApplicationController < ActionController::Base
             "rata": nomerata,
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
-            "ravvedimento": value["ravvedimento"],
-	          "violazione": value["violazione"]=="false"?"Si":""
+            "ravvedimento": value["rrOo"],
+	    "violazione": value["violazione"]=="false"?"Si":""
           }
         end
       end

@@ -19,7 +19,7 @@ function buttonFormatter(cell,row) {
 } 
 
 function numberFormatter(cell, row) {
-  console.log(cell);
+  // console.log(cell);
   var formatted = cell;
   if(!isNaN(cell)) {
     try {
@@ -306,11 +306,14 @@ class AppTributi extends React.Component{
 //     var selectedYear = event.target.value
     var state = this.state;
     state.selectedYear = selectedYear;
+    console.log("year changed to");
+    console.log(selectedYear);
     delete state.tari.immobili;
     delete state.imu.immobili;
     delete state.tasi.immobili;
     //delete state.identificativoSoggetto;
     this.setState(state);
+    console.log("state now is");
     console.log(this.state);
     this.getIdentificativo();
     this.getImmobiliTARI();
@@ -318,8 +321,6 @@ class AppTributi extends React.Component{
   };
   
   render(){
-    console.log("rendering app tributi");
-    const { selectedYear } = this.state.selected.value;
     var options = [];
     
     for(var i = this.annoCorrente; i>=2012; i--){
@@ -372,16 +373,18 @@ class AppTributi extends React.Component{
                 striped
                 hover
               />  : <p className="text-center">Nessun risultato per l'anno scelto</p> }
-            <h4>TASI - Tributo Servizi Indivisibili</h4>
-            {typeof(this.state.tasi.immobili) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.immobili.length>0 ? <BootstrapTable
-                id="immobiliTasi"
-                keyField={"id"}
-                data={this.state.tasi.immobili}
-                columns={this.columns.imutasi.immobili}
-                classes="table-responsive"
-                striped
-                hover
-              />  : <p className="text-center">Nessun risultato per l'anno scelto</p> }
+            <div className={ typeof(this.state.selectedYear)!="undefined"&&this.state.selectedYear.value<2020?"show":"hidden" }>
+              <h4>TASI - Tributo Servizi Indivisibili</h4>
+              {typeof(this.state.tasi.immobili) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.immobili.length>0 ? <BootstrapTable
+                  id="immobiliTasi"
+                  keyField={"id"}
+                  data={this.state.tasi.immobili}
+                  columns={this.columns.imutasi.immobili}
+                  classes="table-responsive"
+                  striped
+                  hover
+                />  : <p className="text-center">Nessun risultato per l'anno scelto</p> }
+            </div>
           </div>
           
           <div role="tabpanel" className="tab-pane" id="pagamenti">
@@ -418,17 +421,19 @@ class AppTributi extends React.Component{
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }       
-            <h4>TASI - Tributo Servizi Indivisibili</h4>
-            {typeof(this.state.tasi.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.pagamenti.tabella.length>0 ? <BootstrapTable
-                id="pagamentiTasi"
-                keyField={"azioni"}
-                data={this.state.tasi.pagamenti.tabella}
-                columns={this.columns.imutasi.pagamenti}
-                classes="table-responsive"
-                striped
-                hover
-              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }      
+              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }
+            <div className={this.annoCorrente-this.numeroAnni<2020}>       
+              <h4>TASI - Tributo Servizi Indivisibili</h4>
+              {typeof(this.state.tasi.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.pagamenti.tabella.length>0 ? <BootstrapTable
+                  id="pagamentiTasi"
+                  keyField={"azioni"}
+                  data={this.state.tasi.pagamenti.tabella}
+                  columns={this.columns.imutasi.pagamenti}
+                  classes="table-responsive"
+                  striped
+                  hover
+                /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - 2020</p> }      
+              </div>
           </div>
         
         </div>

@@ -173,7 +173,7 @@ class ApplicationController < ActionController::Base
     :body => params.to_json,
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json'  } )
 
-    if !result["result"].nil? && result["result"].length>0
+    if !result["result"].nil? && result["result"].length > 0
       session[:token] = result["result"]["token"]
     end
     
@@ -186,7 +186,7 @@ class ApplicationController < ActionController::Base
     result = HTTParty.get("#{@@api_url}soggetti/GetSoggettiTributi?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )    
     
-    if !result["result"].nil? && result["result"].length>0
+    if !result["result"].nil? && result["result"].length > 0
       session[:identificativoSoggetto] = result["result"]["identificativoSoggetto"]
       session[:cognome] = result["result"]["cognome"].strip
       session[:nome] = result["result"]["nome"].strip
@@ -202,7 +202,7 @@ class ApplicationController < ActionController::Base
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
     
     tabellaTasi = []
-    if !result["result"].nil? && result["result"].length>0
+    if !result["result"].nil? && result["result"].length > 0
       result["result"].each do |value|
         resultIndirizzo = HTTParty.get("#{@@api_url}immobiliTributi/GetIndirizziImmobiliTributi?v=1.0&request[tipoRicerca]=RicercaPerNumeroUtenza&request[numeroUtenza]=#{value['numeroUtenza']}", 
         :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
@@ -224,18 +224,18 @@ class ApplicationController < ActionController::Base
           stringavalidita = "dal #{formatted_date_start} al #{formatted_date_end}"
         end
         datiImmobile = {'tipoTariffa': "#{domestica} - #{value['codiceCategoria']}#{componenti}", "mq": value['totaleSuperficie'], "validita": stringavalidita}
-        if !resultIndirizzo["result"].nil? && !resultIndirizzo["result"][0].nil? && resultIndirizzo["result"][0].length>0
+        if !resultIndirizzo["result"].nil? && !resultIndirizzo["result"][0].nil? && resultIndirizzo["result"][0].length > 0
           datiImmobile['indirizzo'] = resultIndirizzo["result"][0]['indirizzoCompleto']
         else
           datiImmobile['indirizzo'] = ""
         end
-        if !value['listaImmobile'].nil? && value['listaImmobile'].length>0
+        if !value['listaImmobile'].nil? && value['listaImmobile'].length > 0
           datiImmobile['catasto'] = "#{value['listaImmobile'][0]['foglio']}/#{value['listaImmobile'][0]['numero']}/#{value['listaImmobile'][0]['subalterno']}"
         else
           datiImmobile['catasto'] = ""
         end
 
-        if !value['listaRiduzioneOccupazione'].nil? && value['listaRiduzioneOccupazione'].length>0
+        if !value['listaRiduzioneOccupazione'].nil? && value['listaRiduzioneOccupazione'].length > 0
           datiImmobile['riduzioniApplicate'] = value['listaRiduzioneOccupazione'][0]['riduzione']['descrizione']
         else 
           datiImmobile['riduzioniApplicate'] = ""
@@ -257,7 +257,7 @@ class ApplicationController < ActionController::Base
       result = HTTParty.get("#{@@api_url}avvisiPagamento/GetAvvisiPagamento?v=1.0&request[idSoggetto]=#{session[:identificativoSoggetto]}&request[anno]=#{anno}", 
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
       
-      if !result["result"].nil? && result["result"].length>0
+      if !result["result"].nil? && result["result"].length > 0
         result["result"].each do |value|
           if (value['dataAnnullamento'].blank?) && value["importoResiduo"].gsub(',', '.').to_f>0           
             statoPagamenti = stato_pagamento("#{session[:dominio].gsub("https","http")}/servizi/pagamenti/ws/stato_pagamenti",value["idAvviso"])
@@ -322,7 +322,7 @@ class ApplicationController < ActionController::Base
     tabellaTasi = []
     counterImu = 1
     counterTasi = 1
-    if !result["result"].nil? && result["result"].length>0
+    if !result["result"].nil? && result["result"].length > 0
       result["result"].each do |value|
         
         date_start = DateTime.parse(value["dataInizio"])
@@ -395,7 +395,7 @@ class ApplicationController < ActionController::Base
     # result = HTTParty.get("#{@@api_url}versamentiF24/GetVersamentiF24?v=1.0&codiceFiscale=#{session[:cf]}",
     # :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
   
-    # if !result["result"].nil? && result["result"].length>0
+    # if !result["result"].nil? && result["result"].length > 0
     #   result["result"].each do |value|
     #     tabellaImu << {
     #       "imposta": value["desImposta"],
@@ -420,8 +420,8 @@ class ApplicationController < ActionController::Base
       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}",
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
     
-      #if result.is_a?(Array) && !result["result"].nil? && result["result"].length>0
-      if !result["result"].nil? && result["result"].length>0
+      #if result.is_a?(Array) && !result["result"].nil? && result["result"].length > 0
+      if !result["result"].nil? && result["result"].length > 0
         result["result"].each do |value|
           nomerata = ""
           if !value["rata"].blank? && value["rata"]==1
@@ -451,7 +451,7 @@ class ApplicationController < ActionController::Base
       result2 = HTTParty.get("#{@@api_url}versamentiMultiCanale/GetVersamentiMultiCanale?v=1.0&codiceFiscale=#{session[:cf]}&annoRiferimento=#{anno}&imposta=Tasi", 
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
     
-      if !result2["result"].nil? && result2["result"].length>0
+      if !result2["result"].nil? && result2["result"].length > 0
         result2["result"].each do |value|
           tabellaImu << {
             "imposta": value["desImposta"],
@@ -532,7 +532,7 @@ class ApplicationController < ActionController::Base
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
       results << result
       
-      if !result["result"].nil? && result["result"].length>0        
+      if !result["result"].nil? && result["result"].length > 0        
         
         result["result"].each_with_index do |value, i|
           totale = value["totaleImportoDovuto"].gsub(',', '.').to_f

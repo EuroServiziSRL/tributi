@@ -373,7 +373,7 @@ class AppTributi extends React.Component{
                 striped
                 hover
               />  : <p className="text-center">Nessun risultato per l'anno scelto</p> }
-            <div className={ typeof(this.state.selectedYearYear)!="undefined"&&this.state.selectedYearYear.value<2020?"show":"hidden" }>
+            <div className={ typeof(this.state.selectedYear)!="undefined"&&this.state.selectedYear.value<2020?"show":"hidden" }>
               <h4>TASI - Tributo Servizi Indivisibili</h4>
               {typeof(this.state.tasi.immobili) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.immobili.length>0 ? <BootstrapTable
                   id="immobiliTasi"

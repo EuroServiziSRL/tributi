@@ -224,14 +224,17 @@ class ApplicationController < ActionController::Base
           stringavalidita = "dal #{formatted_date_start} al #{formatted_date_end}"
         end
         datiImmobile = {'tipoTariffa': "#{domestica} - #{value['codiceCategoria']}#{componenti}", "mq": value['totaleSuperficie'], "validita": stringavalidita}
-        if !value['listaImmobile'].nil? && value['listaImmobile'].length>0
+        if !resultIndirizzo["result"].nil? && !resultIndirizzo["result"][0].nil? && resultIndirizzo["result"][0].length>0
           datiImmobile['indirizzo'] = resultIndirizzo["result"][0]['indirizzoCompleto']
-#           datiImmobile['indirizzo'] = "#{resultIndirizzo.to_json}"
-          datiImmobile['catasto'] = "#{value['listaImmobile'][0]['foglio']}/#{value['listaImmobile'][0]['numero']}/#{value['listaImmobile'][0]['subalterno']}"
         else
           datiImmobile['indirizzo'] = ""
+        end
+        if !value['listaImmobile'].nil? && value['listaImmobile'].length>0
+          datiImmobile['catasto'] = "#{value['listaImmobile'][0]['foglio']}/#{value['listaImmobile'][0]['numero']}/#{value['listaImmobile'][0]['subalterno']}"
+        else
           datiImmobile['catasto'] = ""
         end
+
         if !value['listaRiduzioneOccupazione'].nil? && value['listaRiduzioneOccupazione'].length>0
           datiImmobile['riduzioniApplicate'] = value['listaRiduzioneOccupazione'][0]['riduzione']['descrizione']
         else 

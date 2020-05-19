@@ -100,7 +100,7 @@ class AppTributi extends React.Component{
     
     this.selectAnni = React.createRef();
     this.annoCorrente = new Date().getFullYear();
-    this.state.selected = { value: this.annoCorrente, label: this.annoCorrente };
+    this.state.selectedYear = { value: this.annoCorrente, label: this.annoCorrente };
     
     this.authenticate();
   }
@@ -151,7 +151,7 @@ class AppTributi extends React.Component{
   getIdentificativo() {
     var self = this;
     console.log("Getting identificativo...");
-    $.get(this.dominio+"/soggetto", {data:{anno:this.state.selected.value}}).done(function( response ) {
+    $.get(this.dominio+"/soggetto", {data:{anno:this.state.selectedYear.value}}).done(function( response ) {
       console.log("identificativo response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -182,7 +182,7 @@ class AppTributi extends React.Component{
   getImmobiliTARI() {
     var self = this;
     console.log("Getting immobili tari...");
-    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.selected.value}}).done(function( response ) {
+    $.get(this.dominio+"/tari_immobili", {data:{anno:this.state.selectedYear.value}}).done(function( response ) {
       console.log("immobili tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -201,7 +201,7 @@ class AppTributi extends React.Component{
   getPagamentiTARI() {
     var self = this;
     console.log("Getting pagamenti tari...");
-    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.selected.value}}).done(function( response ) {
+    $.get(this.dominio+"/tari_pagamenti", {data:{anno:this.state.selectedYear.value}}).done(function( response ) {
       console.log("pagamenti tari response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -220,7 +220,7 @@ class AppTributi extends React.Component{
   getImmobiliIMUTASI() {
     var self = this;
     console.log("Getting immobili imutasi...");
-    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.selected.value}}).done(function( response ) {
+    $.get(this.dominio+"/imutasi_immobili", {data:{anno:this.state.selectedYear.value}}).done(function( response ) {
       console.log("imutasi response is loaded");
       console.log(response);
       if(response.hasError) {
@@ -352,7 +352,7 @@ class AppTributi extends React.Component{
         <div className="tab-content">
         
           <div role="tabpanel" className="tab-pane" id="immobili">
-            <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><Select options={options} onChange={this.changeYear} defaultValue={this.state.selected} /></div></h3>
+            <h3>Situazione immobili per l'anno <div style={{width: '128px', display: 'inline-block'}}><Select options={options} onChange={this.changeYear} defaultValue={this.state.selectedYear} /></div></h3>
             <h4>TARI - Tassa Rifiuti</h4>
             {typeof(this.state.tari.immobili) == "undefined" ? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.immobili.length>0 ? <BootstrapTable
                 id="immobiliTari"

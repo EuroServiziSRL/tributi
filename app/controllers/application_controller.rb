@@ -13,7 +13,7 @@ class ApplicationController < ActionController::Base
     #permetto di usare tutti i parametri e li converto in hash
     hash_params = params.permit!.to_hash
     # TEST
-#     session[:cf] = "BTTGNN15A30G694R"
+    #session[:cf] = "BTTGNN15A30G694R"
     @numero_anni_default = 2
   
     if !hash_params['c_id'].blank? && session[:client_id] != hash_params['c_id']
@@ -26,8 +26,8 @@ class ApplicationController < ActionController::Base
       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
 
         #ricavo dominio da oauth2
-        url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
-        #url_oauth2_get_info = "http://localhost:3001/oauth/application/get_info_cid/"+hash_params['c_id'] #PER TEST
+        #url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
+        url_oauth2_get_info = "http://localhost:3001/oauth/application/get_info_cid/"+hash_params['c_id'] #PER TEST
         result_info_ente = HTTParty.get(url_oauth2_get_info,
           :headers => { 'Content-Type' => 'application/json', 'Accept' => 'application/json' } )
         hash_result_info_ente = result_info_ente.parsed_response
@@ -139,6 +139,7 @@ class ApplicationController < ActionController::Base
             html_layout = html_layout.sub("<script",js_da_iniettare+" <script")
             #parte che include il js della parte react sul layout CHE VA ALLA FINE, ALTRIMENTI REACT NON VA
             html_layout = html_layout.gsub("</body>","<%= javascript_pack_tag 'app_tributi' %> </body>")
+                       
             # doc_html = Nokogiri::HTML.parse(html_layout)
             # doc_html.at_css("head").add_next_sibling(head_da_iniettare)
             # doc_html.at_css("#portal_container").add_child("<div id=\"tributi_main\"><%=yield%></div>")
@@ -678,5 +679,12 @@ class ApplicationController < ActionController::Base
   #da fare
   def error_dati
   end
-    
+   
+  #Va a pulire la sessione e chiama il logout sul portale
+  def logout
+    url_logout = File.join(session['dominio'],"autenticazione/logout")
+    reset_session
+    redirect_to url_logout
+  end
+
 end

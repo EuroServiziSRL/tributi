@@ -14,5 +14,7 @@ Rails.application.routes.draw do
   get 'imutasi_pagamenti' => 'application#imutasi_pagamenti', :as => :imutasi_pagamenti
   
   get 'sconosciuto' => 'application#sconosciuto', :as => :sconosciuto
+  get 'logout' => 'application#logout', :as => :logout
+  
   root to: "application#index"
 end

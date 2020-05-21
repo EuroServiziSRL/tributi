@@ -541,14 +541,32 @@ class ApplicationController < ActionController::Base
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
       results << result
       
-      if !result["result"].nil? && result["result"].length > 0    
+      if !result["result"].nil? && result["result"].length > 0   
+        # puts "single result is "    
+        # puts result["result"] 
         
         result["result"].each_with_index do |value, i|
-          # puts "single result is "    
-          # puts value
+          # puts "totaleImportoDovuto is "+string_to_float(value["totaleImportoDovuto"]).to_s
           totale = string_to_float(value["totaleImportoDovuto"])
           importoNonZero = string_to_float(value["totaleImportoDovuto"]) > 0
-          compensaSaldo = value["rata"]=="Acconto" && !result["result"][i+1].nil? && result["result"][i+1]["rata"]=="Saldo" && string_to_float(result["result"][i+1]["importoVersato"]) > string_to_float(result["result"][i+1]["importoVersatoConsiderato"])
+          # puts "importoNonZero? "+importoNonZero.to_s
+          is_acconto = value["rata"]=="Acconto"
+          has_saldo = !result["result"][i+1].nil? && result["result"][i+1]["rata"]=="Saldo"
+          versato_eccesso = has_saldo && string_to_float(result["result"][i+1]["importoVersato"]) > string_to_float(result["result"][i+1]["importoVersatoConsiderato"]) && string_to_float(result["result"][i+1]["totaleImportoDovuto"]) > 0
+          # if anno == 2019
+          #   puts "-------------------"
+          #   puts "value:"
+          #   puts value
+          #   puts "is_acconto? "+is_acconto.to_s
+          #   puts "has_saldo? "+has_saldo.to_s
+          #   puts "versato_eccesso? "+versato_eccesso.to_s
+          #   puts "importoNonZero? "+importoNonZero.to_s
+          #   puts 'value["totaleImportoDovuto"]'+string_to_float(value["totaleImportoDovuto"]).to_s
+          #   puts 'result["result"][i+1]["importoVersato"]'+result["result"][i+1]["importoVersato"].to_s
+          #   puts 'result["result"][i+1]["importoVersatoConsiderato"]'+result["result"][i+1]["importoVersatoConsiderato"].to_s
+          #   puts "result+1? "+(!result["result"][i+1].nil?).to_s
+          # end
+          compensaSaldo = is_acconto && has_saldo && versato_eccesso
           log = log+"[importoNonZero:#{importoNonZero},value-rata:#{value["rata"]},result+1:#{!result["result"][i+1].nil?}]"
 
 #           datiF24 = { 
@@ -608,7 +626,18 @@ class ApplicationController < ActionController::Base
             end
           else
             log = log + "Deleting #{value["rata"]} from #{anno} (568)|";
+            # if anno == 2019
+            #   puts "Deleting #{value["rata"]} from #{anno} (!importoNonZero["+importoNonZero.to_s+"] || !compensaSaldo["+compensaSaldo.to_s+"])";
+            #   puts 'value["rata"]'
+            #   puts value["rata"]
+            #   puts "before delete"
+            #   puts listaF24[anno]
+            # end
             listaF24[anno].tap { |hs| (!hs.nil? && !hs[value["rata"]].nil?) ? hs.delete(value["rata"]) : next }
+            # if anno == 2019
+            #   puts "after delete"
+            #   puts listaF24[anno]
+            # end
           end
         end      
       end
@@ -701,7 +730,8 @@ class ApplicationController < ActionController::Base
   private
 
   def string_to_float(number)
-    return number.gsub(".","").gsub(",",".").to_f
+    float = number.gsub(".","").gsub(",",".").to_f    
+    return (float*100).round / 100.0
   end
 
 end

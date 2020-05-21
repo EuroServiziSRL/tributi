@@ -26,10 +26,18 @@ class ApplicationController < ActionController::Base
       if !hash_params['c_id'].blank? && !hash_params['u_id'].blank?
 
         #ricavo dominio da oauth2
-        #url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
-        url_oauth2_get_info = "http://localhost:3001/oauth/application/get_info_cid/"+hash_params['c_id'] #PER TEST
-        result_info_ente = HTTParty.get(url_oauth2_get_info,
-          :headers => { 'Content-Type' => 'application/json', 'Accept' => 'application/json' } )
+        url_oauth2_get_info = "https://login.soluzionipa.it/oauth/application/get_info_cid/"+hash_params['c_id']
+        # puts url_oauth2_get_info
+        # url_oauth2_get_info = "http://localhost:3001/oauth/application/get_info_cid/"+hash_params['c_id'] #PER TEST
+        result_info_ente = HTTParty.get(
+          url_oauth2_get_info,
+          :headers => { 
+            'Content-Type' => 'application/json', 
+            'Accept' => 'application/json' ,
+            # :debug_output => $stdout 
+          } 
+        )
+        # puts result_info_ente.parsed_response
         hash_result_info_ente = result_info_ente.parsed_response
         @dominio = hash_result_info_ente['url_ente']
         #@dominio = "https://civilianext.soluzionipa.it/portal" #per test
@@ -533,12 +541,14 @@ class ApplicationController < ActionController::Base
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
       results << result
       
-      if !result["result"].nil? && result["result"].length > 0        
+      if !result["result"].nil? && result["result"].length > 0    
         
         result["result"].each_with_index do |value, i|
-          totale = value["totaleImportoDovuto"].gsub(',', '.').to_f
-          importoNonZero = value["totaleImportoDovuto"].gsub(',', '.').to_f > 0
-          compensaSaldo = value["rata"]=="Acconto" && !result["result"][i+1].nil? && result["result"][i+1]["rata"]=="Saldo" && result["result"][i+1]["importoVersato"].gsub(',', '.').to_f > result["result"][i+1]["importoVersatoConsiderato"].gsub(',', '.').to_f
+          # puts "single result is "    
+          # puts value
+          totale = string_to_float(value["totaleImportoDovuto"])
+          importoNonZero = string_to_float(value["totaleImportoDovuto"]) > 0
+          compensaSaldo = value["rata"]=="Acconto" && !result["result"][i+1].nil? && result["result"][i+1]["rata"]=="Saldo" && string_to_float(result["result"][i+1]["importoVersato"]) > string_to_float(result["result"][i+1]["importoVersatoConsiderato"])
           log = log+"[importoNonZero:#{importoNonZero},value-rata:#{value["rata"]},result+1:#{!result["result"][i+1].nil?}]"
 
 #           datiF24 = { 
@@ -580,10 +590,10 @@ class ApplicationController < ActionController::Base
                 listaF24[anno][value["rata"]][stringaTributo] += totale
                 listaF24[anno][value["rata"]][stringaNum] += value["numeroImmobili"]
                 listaF24[anno][value["rata"]]["num"] += value["numeroImmobili"]
-                listaF24[anno][value["rata"]]["det"] += value["detrazioneUtilizzata"].gsub(',', '.').to_f
-                listaF24[anno][value["rata"]]["dovuto"] += value["totaleImportoDovuto"].gsub(',', '.').to_f
-                listaF24[anno][value["rata"]]["versato"] += value["importoVersatoConsiderato"].gsub(',', '.').to_f
-                listaF24[anno][value["rata"]]["dovutoPre"] += value["importoDovuto"].gsub(',', '.').to_f
+                listaF24[anno][value["rata"]]["det"] += string_to_float(value["detrazioneUtilizzata"])
+                listaF24[anno][value["rata"]]["dovuto"] += string_to_float(value["totaleImportoDovuto"])
+                listaF24[anno][value["rata"]]["versato"] += string_to_float(value["importoVersatoConsiderato"])
+                listaF24[anno][value["rata"]]["dovutoPre"] += string_to_float(value["importoDovuto"])
                 listaF24[anno]["Unica"]["totale"] += totale
                 if value["rata"] == "Acconto" 
                   listaF24[anno]["Unica"]["num"] += value["numeroImmobili"]
@@ -608,6 +618,7 @@ class ApplicationController < ActionController::Base
     
     
     listaF24.each do |anno, f24|
+      # puts f24
       data_pagamento = DateTime.parse(params[:data][:dataPagamento])
       data_pagamento = data_pagamento.strftime('%d/%m/%Y')
 
@@ -685,6 +696,12 @@ class ApplicationController < ActionController::Base
     url_logout = File.join(session['dominio'],"autenticazione/logout")
     reset_session
     redirect_to url_logout
+  end
+
+  private
+
+  def string_to_float(number)
+    return number.gsub(".","").gsub(",",".").to_f
   end
 
 end

@@ -249,6 +249,8 @@ class ApplicationController < ActionController::Base
         else 
           datiImmobile['riduzioniApplicate'] = ""
         end
+
+        datiImmobile['id'] = Digest::SHA1.hexdigest(datiImmobile.map{|v| v.to_s.inspect}.join(', '))
         tabellaTasi << datiImmobile
       end
     end

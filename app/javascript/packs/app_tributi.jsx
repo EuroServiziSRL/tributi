@@ -356,7 +356,7 @@ class AppTributi extends React.Component{
             <h4>TARI - Tassa Rifiuti</h4>
             {typeof(this.state.tari.immobili) == "undefined" ? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.immobili.length>0 ? <BootstrapTable
                 id="immobiliTari"
-                keyField={"indirizzo"}
+                keyField={"id"}
                 data={this.state.tari.immobili}
                 columns={this.columns.tari.immobili}
                 classes="table-responsive"
@@ -422,7 +422,7 @@ class AppTributi extends React.Component{
                 striped
                 hover
               /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }
-            <div className={this.annoCorrente-this.numeroAnni<2020}>       
+            <div className={ typeof(this.state.selectedYear)!="undefined"&&this.state.selectedYear.value<2020?"show":"hidden" }>       
               <h4>TASI - Tributo Servizi Indivisibili</h4>
               {typeof(this.state.tasi.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.pagamenti.tabella.length>0 ? <BootstrapTable
                   id="pagamentiTasi"

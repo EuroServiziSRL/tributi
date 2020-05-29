@@ -15,7 +15,7 @@ function buttonFormatter(cell,row) {
   var label = "Stampa";
   if (cell.includes("aggiungi_pagamento_pagopa")) {label = "Paga con PagoPA";}
   else if(cell.includes("servizi/pagamenti")) { label = "Vai al carrello"; }
-  return  <a href={cell} target="_blank" className="btn btn-default">{label}</a>;
+  return  <a href={cell} target="_blank" className="btn btn-primary">{label}</a>;
 } 
 
 function numberFormatter(cell, row) {

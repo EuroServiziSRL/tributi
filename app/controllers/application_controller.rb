@@ -548,7 +548,9 @@ class ApplicationController < ActionController::Base
         # puts result["result"] 
         
         result["result"].each_with_index do |value, i|
+          # puts value
           # puts "totaleImportoDovuto is "+string_to_float(value["totaleImportoDovuto"]).to_s
+          ravvedimento = value["giorniRitardoRavvedimento"].to_i > 0
           totale = string_to_float(value["totaleImportoDovuto"])
           importoNonZero = string_to_float(value["totaleImportoDovuto"]) > 0
           # puts "importoNonZero? "+importoNonZero.to_s
@@ -600,6 +602,8 @@ class ApplicationController < ActionController::Base
             end
             if !value["rata"].nil? && !listaF24.nil? && !listaF24[anno][value["rata"]].nil?
               if importoNonZero || compensaSaldo
+                listaF24[anno][value["rata"]]["ravvedimento"] = ravvedimento
+                listaF24[anno][value["rata"]]["totaleRavv"] += totale
                 listaF24[anno][value["rata"]]["totale"] += totale
                 listaF24[anno][value["rata"]]["totaleRavv"] += totale
                 listaF24[anno]["Unica"]["totaleRavv"] += totale
@@ -653,7 +657,7 @@ class ApplicationController < ActionController::Base
       data_pagamento = DateTime.parse(params[:data][:dataPagamento])
       data_pagamento = data_pagamento.strftime('%d/%m/%Y')
 
-      url_stampa = "ravv=1&dataRavv=#{data_pagamento}&cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{(params[:data][:modulo]=="Imposta_Immobili"?"IMU":"TASI")}&sanzioni=1"
+      url_stampa = "cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{( params[:data][:modulo]=="Imposta_Immobili" ? "IMU" : "TASI" )}"
       
       f24.each do |nomeRata, datiRata|
         numRata = ""
@@ -671,7 +675,7 @@ class ApplicationController < ActionController::Base
 #             url_stampa += "&#{queryKey}=#{value}"
 #           end
 #         end
-          numRata = nomeRata=="Unica"?"":(nomeRata=="Acconto"?"1":"2")
+          numRata = nomeRata=="Unica" ? "" : ( nomeRata=="Acconto" ? "1" : "2" )
           datiRata.each do |key, value|
             if key.end_with? "C"
               queryKey = "#{key.chomp("C")}#{numRata}C"
@@ -683,7 +687,13 @@ class ApplicationController < ActionController::Base
             
             queryKey[0] = queryKey[0].downcase;
             
-            url_stampa += "&#{queryKey}=#{value}"
+            if key == "ravvedimento"
+              if value
+                url_stampa += "&ravv=1&dataRavv=#{data_pagamento}&sanzioni=1"
+              end
+            else
+              url_stampa += "&#{queryKey}=#{value}"
+            end
           end
         
       end

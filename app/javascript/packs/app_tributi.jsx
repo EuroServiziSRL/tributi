@@ -16,6 +16,16 @@ function buttonFormatter(cell,row) {
   if (cell.includes("aggiungi_pagamento_pagopa")) {label = "Paga con PagoPA";}
   else if(cell.includes("servizi/pagamenti")) { label = "Vai al carrello"; }
   return  <a href={cell} target="_blank" className="btn btn-primary">{label}</a>;
+}
+
+function dateFormatter(cell, row) {
+  var formatted = cell;
+  if(cell) {
+    var dateString = cell.replace(/-/g,"/").replace(/T.*/g," ").replace(/\.\d{3}Z/g,"");
+    var date = new Date(dateString);
+    formatted = date.toLocaleDateString("IT");
+  }
+  return <>{formatted}</>;
 } 
 
 function numberFormatter(cell, row) {
@@ -76,7 +86,7 @@ class AppTributi extends React.Component{
     },    
     versamenti: [
       { dataField: "imposta", text: "Imposta" },
-      { dataField: "dataVersamento", text: "Data versamento" },
+      { dataField: "dataVersamento", text: "Data versamento", formatter: dateFormatter },
       { dataField: "tipo", text: "Tipo" },
       { dataField: "annoRiferimento", text: "Anno riferimento" },
       { dataField: "codiceTributo", text: "Codice tributo" },

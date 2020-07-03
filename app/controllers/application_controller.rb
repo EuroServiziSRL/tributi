@@ -453,7 +453,7 @@ class ApplicationController < ActionController::Base
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
             "ravvedimento": value["rrOo"],
-	          "violazione": value["violazione"]=="false"?"Si":""
+	    "violazione": value["violazione"]
           }
           counterVersamenti = counterVersamenti+1
         end
@@ -467,14 +467,14 @@ class ApplicationController < ActionController::Base
           tabellaImu << {
             "imposta": value["desImposta"],
             "dataVersamento": value["dataPagamento"],
-            "annoRiferimento": value["anno"].strip.to_i,
+            "annoRiferimento": value["anno"].to_s.strip.to_i,
             "tipo": value["canale"],
             "codiceTributo": value["codiceTributo"],
             "rata": value["codiceRata"],
             "detrazione": 0,
             "totale": value["importo"],
             "ravvedimento": value["ravvedimento"],
-            "violazione": false
+            "violazione": ""
           }
         end
       end            

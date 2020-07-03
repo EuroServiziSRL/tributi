@@ -453,7 +453,7 @@ class ApplicationController < ActionController::Base
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
             "ravvedimento": value["rrOo"],
-	    "violazione": value["violazione"]
+	          "violazione": value["violazione"]
           }
           counterVersamenti = counterVersamenti+1
         end
@@ -468,7 +468,7 @@ class ApplicationController < ActionController::Base
             "imposta": value["desImposta"],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"].to_s.strip.to_i,
-            "tipo": value["canale"],
+            "tipo": value["tipoVersamento"],
             "codiceTributo": value["codiceTributo"],
             "rata": value["codiceRata"],
             "detrazione": 0,
@@ -653,7 +653,8 @@ class ApplicationController < ActionController::Base
     
     
     listaF24.each do |anno, f24|
-      # puts f24
+      puts "parsing F24"
+      puts f24
       data_pagamento = DateTime.parse(params[:data][:dataPagamento])
       data_pagamento = data_pagamento.strftime('%d/%m/%Y')
 
@@ -692,7 +693,15 @@ class ApplicationController < ActionController::Base
                 url_stampa += "&ravv=1&dataRavv=#{data_pagamento}&sanzioni=1"
               end
             else
-              url_stampa += "&#{queryKey}=#{value}"
+              if queryKey.match(/^num/) && value.to_i > 0 
+                fixQueryKey = queryKey.chomp("C").chomp("T").chomp("1").chomp("2")
+                if !url_stampa.include? fixQueryKey
+                  url_stampa += "&#{fixQueryKey}=#{value}"
+                  puts "adding &#{fixQueryKey}=#{value} to url_stampa"
+                end
+              elsif !queryKey.match(/^num/)
+                url_stampa += "&#{queryKey}=#{value}"
+              end
             end
           end
         

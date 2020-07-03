@@ -18,15 +18,37 @@ function buttonFormatter(cell,row) {
   return  <a href={cell} target="_blank" className="btn btn-primary">{label}</a>;
 }
 
+function pad(n) {return n < 10 ? "0"+n : n;}
+
 function dateFormatter(cell, row) {
   var formatted = cell;
-  if(cell) {
+  if(cell && cell.match(/\d{4}\-\d{2}\-\d{2}T\d{2}:\d{2}:\d{2}/g)) {
     var dateString = cell.replace(/-/g,"/").replace(/T.*/g," ").replace(/\.\d{3}Z/g,"");
+    // console.log("cell",cell,"dateString",dateString);
     var date = new Date(dateString);
-    formatted = date.toLocaleDateString("IT");
+    formatted =  pad(date.getDate())+"/"+pad(date.getMonth()+1)+"/"+date.getFullYear();
+  } else {
+    // console.log("cell",cell);
   }
   return <>{formatted}</>;
 } 
+
+function booleanFormatter(cell, row) {
+  var returnString = cell
+  var yes = undefined;
+  if(typeof(cell)=="boolean") {
+    yes = cell;
+  } else if (typeof(cell)!="undefined" && ['sì', 'true', 'si', '1'].indexOf(cell.toLowerCase()) >= 0) {
+    yes = true;
+  } else if(typeof(cell)!="undefined" && ['no', 'false', '0'].indexOf(cell.toLowerCase()) >= 0) {
+    yes = false;
+  }
+  if(typeof(yes)!="undefined") {
+    returnString = yes?<FontAwesomeIcon icon={faCheck} />:<></>
+  }
+  return returnString;
+}
+
 
 function numberFormatter(cell, row) {
   // console.log(cell);
@@ -93,8 +115,8 @@ class AppTributi extends React.Component{
       { dataField: "rata", text: "Rata" },
       { dataField: "detrazione", text: "Detrazione", formatter: numberFormatter  },
       { dataField: "totale", text: "Totale", formatter: numberFormatter },
-      { dataField: "ravvedimento", text: "Ravvedimento" },
-      { dataField: "violazione", text: "Violazione" },
+      { dataField: "ravvedimento", text: "Ravvedimento", formatter: booleanFormatter },
+      { dataField: "violazione", text: "Violazione", formatter: booleanFormatter },
     ]
   };
   tables = { };

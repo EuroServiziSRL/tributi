@@ -9,7 +9,7 @@ import ReactDOM from 'react-dom';
 import Select from 'react-select';
 import BootstrapTable from 'react-bootstrap-table-next';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCircleNotch } from '@fortawesome/free-solid-svg-icons'
+import { faCircleNotch,faCheck } from '@fortawesome/free-solid-svg-icons'
 
 function buttonFormatter(cell,row) {
   var label = "Stampa";

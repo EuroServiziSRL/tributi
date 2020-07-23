@@ -109,7 +109,7 @@ class AppTributi extends React.Component{
     versamenti: [
       { dataField: "imposta", text: "Imposta" },
       { dataField: "dataVersamento", text: "Data versamento", formatter: dateFormatter },
-      { dataField: "tipo", text: "Tipo" },
+      // { dataField: "tipo", text: "Tipo" },
       { dataField: "annoRiferimento", text: "Anno riferimento" },
       { dataField: "codiceTributo", text: "Codice tributo" },
       { dataField: "rata", text: "Rata" },
@@ -149,11 +149,13 @@ class AppTributi extends React.Component{
     $("table.table-responsive").each(function(){
       var id = $(this).attr("id");
       if(canBeResponsive) {
+        // var $backupHeader = $(this).find("tr").first().clone(true);
         console.log("Calling tableToUl on "+id);
         tableToUl($("#"+id));
         if($(this).attr("id")=="immobiliImu" || $(this).attr("id")=="immobiliTasi" || $(this).attr("id")=="immobiliTari") {
           $("#"+$(this).attr("id")+" li div:nth-of-type(1)").attr("class","cell-wide-4");
         }
+        // $backupHeader.appendTo("<table>").insertBefore($("#"+id));
       } else  { console.log("tableToUl is not a function ("+typeof(tableToUl)+") or no css available for responsive tables"); } 
     });
   }

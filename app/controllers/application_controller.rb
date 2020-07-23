@@ -400,6 +400,14 @@ class ApplicationController < ActionController::Base
   def versamenti
     tabellaImu = [] 
     counterVersamenti = 1
+
+    labels = { 
+      'Ici-Imu' => 'IMU',
+      'Tasi' => 'TASI',
+      'Imposta Municipale Propria' => 'IMU',
+      'Tributo Servizi Indivisibili' => 'TASI',
+      'Tassa Rifiuti' => 'TARI'
+    }
       
     # commentato perchè su albignasego restituiva valori doppi (presenti anche su versamentiTributi/GetVersamenti)
     #
@@ -440,15 +448,15 @@ class ApplicationController < ActionController::Base
           elsif !value["rata"].blank? && value["rata"]==2
             nomerata = "Saldo" 
           else
-            nomerata = value["dettaglioRata"]
+            nomerata = value["rata"]
           end
           tabellaImu << {
-            "id": counterVersamenti,
-            "imposta": value["modulo"],
+            "id": "getVersamenti"+counterVersamenti.to_s,
+            "imposta": labels[value["modulo"]],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"],
             "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario" ,
-            "codiceTributo": value["codiceTributoF24"],
+            "codiceTributo": value["codiceTributoF24"].gsub(/[^0-9]/,""),
             "rata": nomerata,
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
@@ -459,23 +467,33 @@ class ApplicationController < ActionController::Base
         end
       end
       
-      result2 = HTTParty.get("#{@@api_url}versamentiMultiCanale/GetVersamentiMultiCanale?v=1.0&codiceFiscale=#{session[:cf]}&annoRiferimento=#{anno}&imposta=Tasi", 
+      result2 = HTTParty.get("#{@@api_url}versamentiMultiCanale/GetVersamentiMultiCanale?v=1.0&codiceFiscale=#{session[:cf]}&annoRiferimento=#{anno}&tipologia=Non_Travasati", 
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
     
       if !result2["result"].nil? && result2["result"].length > 0
         result2["result"].each do |value|
+          nomerata = ""
+          if !value["rata"].blank? && value["rata"]==1
+            nomerata = "Acconto" 
+          elsif !value["rata"].blank? && value["rata"]==2
+            nomerata = "Saldo" 
+          else
+            nomerata = value["rata"]
+          end
           tabellaImu << {
-            "imposta": value["desImposta"],
+            "id": "getVersamentiMulticanale"+counterVersamenti.to_s,
+            "imposta": labels[value["desImposta"]],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"].to_s.strip.to_i,
             "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario",
-            "codiceTributo": value["codiceTributo"],
-            "rata": value["codiceRata"],
+            "codiceTributo": value["codiceTributo"].gsub(/[^0-9]/,""),
+            "rata": nomerata,
             "detrazione": 0,
             "totale": value["importo"],
             "ravvedimento": value["ravvedimento"],
-            "violazione": ""
+            "violazione": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione"
           }
+          counterVersamenti = counterVersamenti+1
         end
       end            
       

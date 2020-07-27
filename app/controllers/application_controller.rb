@@ -442,22 +442,15 @@ class ApplicationController < ActionController::Base
       #if result.is_a?(Array) && !result["result"].nil? && result["result"].length > 0
       if !result["result"].nil? && result["result"].length > 0
         result["result"].each do |value|
-          nomerata = ""
-          if !value["rata"].blank? && value["rata"]==1
-            nomerata = "Acconto" 
-          elsif !value["rata"].blank? && value["rata"]==2
-            nomerata = "Saldo" 
-          else
-            nomerata = value["rata"]
-          end
           tabellaImu << {
             "id": "getVersamenti"+counterVersamenti.to_s,
             "imposta": labels[value["modulo"]],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"],
-            "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario" ,
+            # "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario" ,
+            "tipo": "GetVersamenti",
             "codiceTributo": value["codiceTributoF24"].gsub(/[^0-9]/,""),
-            "rata": nomerata,
+            "rata": value["rata"].blank? ? value["dettaglioRata"] : value["rata"],
             "detrazione": value["importoDetrazione"],
             "totale": value["importo"],
             "ravvedimento": value["rrOo"],
@@ -472,22 +465,15 @@ class ApplicationController < ActionController::Base
     
       if !result2["result"].nil? && result2["result"].length > 0
         result2["result"].each do |value|
-          nomerata = ""
-          if !value["rata"].blank? && value["rata"]==1
-            nomerata = "Acconto" 
-          elsif !value["rata"].blank? && value["rata"]==2
-            nomerata = "Saldo" 
-          else
-            nomerata = value["rata"]
-          end
           tabellaImu << {
             "id": "getVersamentiMulticanale"+counterVersamenti.to_s,
             "imposta": labels[value["desImposta"]],
             "dataVersamento": value["dataPagamento"],
             "annoRiferimento": value["anno"].to_s.strip.to_i,
-            "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario",
+            # "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario",
+            "tipo": "GetVersamentiMultiCanale",
             "codiceTributo": value["codiceTributo"].gsub(/[^0-9]/,""),
-            "rata": nomerata,
+            "rata": value["rata"],
             "detrazione": 0,
             "totale": value["importo"],
             "ravvedimento": value["ravvedimento"],

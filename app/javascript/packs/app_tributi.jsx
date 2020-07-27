@@ -109,7 +109,7 @@ class AppTributi extends React.Component{
     versamenti: [
       { dataField: "imposta", text: "Imposta" },
       { dataField: "dataVersamento", text: "Data versamento", formatter: dateFormatter },
-      // { dataField: "tipo", text: "Tipo" },
+      // { dataField: "tipo", text: "Provenienza" },
       { dataField: "annoRiferimento", text: "Anno riferimento" },
       { dataField: "codiceTributo", text: "Codice tributo" },
       { dataField: "rata", text: "Rata" },

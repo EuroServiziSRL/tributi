@@ -21,7 +21,7 @@ module Tributi
 
     config.action_dispatch.default_headers = {'X-Frame-Options' => 'ALLOWALL'}
 
-    config.session_store :cookie_store, key: '_app_session', expire_after: 30.minutes
+    # config.session_store :cookie_store, key: '_app_session', expire_after: 30.minutes
 
     #CORS
     #allow GET, POST or OPTIONS requests from any origin on any resource.

@@ -63,15 +63,53 @@ function numberFormatter(cell, row) {
   return <span>{formatted}&euro;</span>;
 }
 
+function htmlFormatter(cell,row) {
+  return <span dangerouslySetInnerHTML={ {__html: cell} }></span>
+}
+
+function ucfirst(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+function sortResponsiveTable($table, columnIndex, sortings) {
+  console.log("called sort on column",columnIndex);
+  for(var sorting of sortings) {
+    console.log("sorting by",sorting.column, sorting.order?"ASC":"DESC");
+  }
+  $table.find("li:not(.table-header)").sort((a, b) => {
+    var valueA = $($(a).find("div")[columnIndex]).text().replace(/^[^:]+:/,"");
+    var valueB = $($(b).find("div")[columnIndex]).text().replace(/^[^:]+:/,"");
+    var returnValue = 0;
+    for(var sorting of sortings) {
+      if (valueA === valueB) {
+        // skip to next sorting
+      } else {
+        if(sorting.order===true) {
+          returnValue = valueA < valueB?-1:1;
+        } else {
+          returnValue = valueB < valueA?-1:1;
+        }
+        break;
+      }
+    }   
+    return returnValue;                 
+  }).appendTo($table);
+  console.log("called sort on column",columnIndex);
+}
+
 class AppTributi extends React.Component{
   dominio = window.location.protocol+"//"+window.location.hostname+(window.location.port!=""?":"+window.location.port:"");
-  numeroAnni = $("#numero_anni").text();
+  anniSituazione = $("#anni_situazione").text();
+  anniVersamenti = $("#anni_versamenti").text();
+  anniPagamenti = $("#anni_pagamenti").text();
+  mostraViolazioni = $("#mostra_violazioni").text()=="true";
+  test = $("#test").text()=="true";
   columns = {
     tari: {
       immobili: [
         { dataField: "indirizzo", text: "Indirizzo" },
-        { dataField: "catasto", text: "Catasto" },
-        { dataField: "categoria", text: "Categoria" },
+        { dataField: "catasto", text: "Catasto", formatter: htmlFormatter },
+        { dataField: "categoria", text: "Categoria", formatter: htmlFormatter },
         { dataField: "tipoTariffa", text: "Tipo tariffa" },
         { dataField: "mq", text: "Mq" },
         { dataField: "riduzioniApplicate", text: "Riduzioni applicate" },
@@ -88,8 +126,8 @@ class AppTributi extends React.Component{
     imutasi: {
       immobili: [
         { dataField: "indirizzo", text: "Indirizzo" },
-        { dataField: "catasto", text: "Catasto" },
-        { dataField: "categoria", text: "Categoria" },
+        { dataField: "catasto", text: "Catasto", formatter: htmlFormatter },
+        { dataField: "categoria", text: "Categoria", formatter: htmlFormatter },
         { dataField: "rendita", text: "Rendita", formatter: numberFormatter },
         { dataField: "possesso", text: "Titolo di possesso" },
         { dataField: "riduzioni", text: "Riduzioni applicate" },
@@ -116,9 +154,17 @@ class AppTributi extends React.Component{
       { dataField: "detrazione", text: "Detrazione", formatter: numberFormatter  },
       { dataField: "totale", text: "Totale", formatter: numberFormatter },
       { dataField: "ravvedimento", text: "Ravvedimento", formatter: booleanFormatter },
-      { dataField: "violazione", text: "Violazione", formatter: booleanFormatter },
     ]
   };
+  // false -> discendente
+  // true -> ascendente
+  // si parte al contrario per permettere l'ordinamento iniziale (???)
+  sortings = [
+    {column:"annoRiferimento",order: true},
+    {column:"imposta",order: false},
+    {column:"codiceTributo",order: false},
+    {column:"rata",order: false},
+  ];
   tables = { };
   state = {
     identificativoSoggetto:false,
@@ -133,6 +179,10 @@ class AppTributi extends React.Component{
     this.selectAnni = React.createRef();
     this.annoCorrente = new Date().getFullYear();
     this.state.selectedYear = { value: this.annoCorrente, label: this.annoCorrente };
+
+    if(this.mostraViolazioni) {
+      this.columns.versamenti.push({ dataField: "violazione", text: "Violazione", formatter: booleanFormatter })
+    }
     
     this.authenticate();
   }
@@ -141,6 +191,7 @@ class AppTributi extends React.Component{
     
     console.log("AppTributi did update");
     var canBeResponsive = true;
+    var self = this;
     if($('li.table-header').length==0) {
       $('<li class="table-header">').appendTo("body");
       canBeResponsive = typeof(tableToUl) === "function" && typeof($('li.table-header').css("font-weight"))!="undefined";
@@ -155,9 +206,68 @@ class AppTributi extends React.Component{
         if($(this).attr("id")=="immobiliImu" || $(this).attr("id")=="immobiliTasi" || $(this).attr("id")=="immobiliTari") {
           $("#"+$(this).attr("id")+" li div:nth-of-type(1)").attr("class","cell-wide-4");
         }
+        if(id=="versamenti" && self.test) {
+          // aggiungo ordinamento
+          $("#"+id).find(".table-header div").each(function(columnIndex){
+            var column = $(this).text().toLowerCase().split(" ");
+            if(typeof(column[1])!="undefined") {
+              column = column[0]+ucfirst(column[1]);
+            } else {
+              column = column[0];
+            }
+            var sortable = self.sortings.some(sorting => sorting.column === column);
+            if(sortable) {
+              var thisSorting = self.sortings.filter(sorting => { return sorting.column === column })[0];
+              var $sortButton = $("<button class='btn' id='sort_"+column+"'>"+$(this).text()+"<span>&#96"+(thisSorting.order===true?"5":"6")+"0;</span></button>");
+              $sortButton.data("column", column);
+              $sortButton.click(function(){
+                var thisSorting = self.sortings.filter(sorting => { return sorting.column === column })[0];
+                self.sortings[self.sortings.indexOf(thisSorting)].order = !self.sortings[self.sortings.indexOf(thisSorting)].order;
+                self.sortings.sort(function(x,y){ return x.column == column ? -1 : y.column == column ? 1 : 0; });
+                // console.log("Sorting versamenti by", self.sortings[0].column, self.sortings[0].order, "and then by", self.sortings[1].column, self.sortings[1].order);
+                $(this).find("span").remove();
+                $(this).append("<span>&#96"+(thisSorting.order===true?"5":"6")+"0;</span>");
+                sortResponsiveTable($("#"+id),columnIndex,self.sortings);
+                // self.sortVersamenti($(this).data("column"),self);
+              });
+              $(this).empty().append($sortButton);
+            }
+          });
+          // ordino tabella
+          $('#sort_rata').click();
+          $('#sort_codiceTributo').click();
+          $('#sort_imposta').click();
+          $('#sort_annoRiferimento').click();
+        }
         // $backupHeader.appendTo("<table>").insertBefore($("#"+id));
       } else  { console.log("tableToUl is not a function ("+typeof(tableToUl)+") or no css available for responsive tables"); } 
     });
+  }
+
+  sortVersamenti(column, self) {
+    var state = self.state;
+    var thisSorting = self.sortings.filter(sorting => { return sorting.column === column })[0];
+    self.sortings[self.sortings.indexOf(thisSorting)].order = !self.sortings[self.sortings.indexOf(thisSorting)].order;
+    self.sortings.sort(function(x,y){ return x.column == column ? -1 : y.column == column ? 1 : 0; });
+    console.log("Sorting versamenti by", self.sortings[0].column, self.sortings[0].order, "and then by", self.sortings[1].column, self.sortings[1].order);
+    state.versamenti.sort((a, b) => {
+      var returnValue = 0;
+      for(var sorting of self.sortings) {
+        if (a[sorting.column] === b[sorting.column]) {
+          // skip to next sorting
+        } else {
+          if(sorting.order===true) {
+            returnValue = a[sorting.column] < b[sorting.column]?-1:1;
+          } else {
+            returnValue = b[sorting.column] < a[sorting.column]?-1:1;
+          }
+          break;
+        }
+      }   
+      return returnValue;                 
+    });
+    self.setState(state);
+    console.log(self.state.versamenti);
   }
   
   componentDidMount() {
@@ -191,13 +301,13 @@ class AppTributi extends React.Component{
       if(response.hasError) {
         console.log("response error");
       } else {
-	console.log("response result is");
+	      console.log("response result is");
         console.log(response.result);
         var state = self.state;
         state.identificativoSoggetto = response.result;
         self.setState(state);
 
-	if(response.result!=null) {
+	    if(response.result!=null) {
           console.log("result not null, fetching other data");
           self.setState(state);
           self.getImmobiliTARI();
@@ -283,6 +393,7 @@ class AppTributi extends React.Component{
         var state = self.state;
         state.versamenti = response;
         self.setState(state);
+        // self.sortVersamenti("annoRiferimento", self);
       }
     }).fail(function(response) {
       console.log("versamenti fail!");
@@ -357,7 +468,9 @@ class AppTributi extends React.Component{
   render(){
     var options = [];
     
-    for(var i = this.annoCorrente; i>=2012; i--){
+    console.log("rendering...");
+
+    for(var i = this.annoCorrente; i>=this.annoCorrente-this.anniSituazione; i--){
       options.push({ value: i, label: i });
 //       options.push(<option key={i} value={i} >{i}</option>);
 //       options.push(i);
@@ -365,6 +478,8 @@ class AppTributi extends React.Component{
 
     var returnVal = <div className="alert alert-warning">Dati contribuente non presenti nel sistema</div>
     if(this.state.identificativoSoggetto!=null) {
+      console.log("drawing tables...");
+      console.log("versamenti:", this.state.versamenti);
       returnVal =       <div itemID="app_tributi">
         <h4>Dati contribuente</h4>
         {this.state.identificativoSoggetto?
@@ -422,7 +537,7 @@ class AppTributi extends React.Component{
           </div>
           
           <div role="tabpanel" className="tab-pane" id="pagamenti">
-            <h3>Elenco versamenti per gli anni 2012 - {this.annoCorrente}</h3>
+            <h3>Elenco versamenti per gli anni {this.annoCorrente-this.anniVersamenti} - {this.annoCorrente}</h3>
             {typeof(this.state.versamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.versamenti.length>0 ? <BootstrapTable
                 id="versamenti"
                 keyField={"id"}
@@ -431,11 +546,11 @@ class AppTributi extends React.Component{
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p className="text-center">Nessun risultato per gli anni 2012 - {this.annoCorrente}</p> }
+              /> : <p className="text-center">Nessun risultato per gli anni {this.annoCorrente-this.anniVersamenti} - {this.annoCorrente}</p> }
           </div>
           
           <div role="tabpanel" className="tab-pane" id="ravvedimenti">
-            <h3>Elenco pagamenti in sospeso per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</h3>
+            <h3>Elenco pagamenti in sospeso per gli anni {this.annoCorrente-this.anniPagamenti} - {this.annoCorrente}</h3>
             <h4>TARI - Tassa Rifiuti</h4>
             {typeof(this.state.tari.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> : this.state.tari.pagamenti.length>0 ? <BootstrapTable
                 id="pagamentiTari"
@@ -445,7 +560,7 @@ class AppTributi extends React.Component{
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }
+              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.anniPagamenti} - {this.annoCorrente}</p> }
             <h4>IMU - Imposta sugli Immobili</h4>
             {typeof(this.state.imu.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.imu.pagamenti.tabella.length>0 ? <BootstrapTable
                 id="pagamentiImu"
@@ -455,7 +570,7 @@ class AppTributi extends React.Component{
                 classes="table-responsive"
                 striped
                 hover
-              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - {this.annoCorrente}</p> }
+              /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.anniPagamenti} - {this.annoCorrente}</p> }
             <div className={ typeof(this.state.selectedYear)!="undefined"&&this.state.selectedYear.value<2020?"show":"hidden" }>       
               <h4>TASI - Tributo Servizi Indivisibili</h4>
               {typeof(this.state.tasi.pagamenti) == "undefined"? <p className="text-center"><FontAwesomeIcon icon={faCircleNotch}  size="2x" spin /><span className="sr-only">caricamento...</span></p> :this.state.tasi.pagamenti.tabella.length>0 ? <BootstrapTable
@@ -466,7 +581,7 @@ class AppTributi extends React.Component{
                   classes="table-responsive"
                   striped
                   hover
-                /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.numeroAnni} - 2020</p> }      
+                /> : <p className="text-center">Tutti i pagamenti risultano in regola per per gli anni {this.annoCorrente-this.anniPagamenti} - 2020</p> }      
               </div>
           </div>
         

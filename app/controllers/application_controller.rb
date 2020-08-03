@@ -7,6 +7,9 @@ class ApplicationController < ActionController::Base
   include ApplicationHelper
   @@api_resource = "https://api.civilianext.it"
   @@api_url = "#{@@api_resource}/Tributi/api/"
+  @@log_level = 3
+  @@log_to_output = true
+  @@log_to_file = false
   
   #ROOT della main_app
   def index
@@ -14,7 +17,12 @@ class ApplicationController < ActionController::Base
     hash_params = params.permit!.to_hash
     # TEST
     #session[:cf] = "BTTGNN15A30G694R"
-    @numero_anni_default = 2
+    @anni_situazione_default = 3
+    @anni_versamenti_default = 5
+    @anni_pagamenti_default = 3
+    @tipologia_versamenti_default = "Non_Travasati"
+    @mostra_violazioni_default = false
+    @test = params["test"].nil? ? false : true
   
     if !hash_params['c_id'].blank? && session[:client_id] != hash_params['c_id']
       reset_session
@@ -60,20 +68,34 @@ class ApplicationController < ActionController::Base
         #impostare durata sessione in application.rb: ora dura 30 minuti
         if !hash_result.blank? && !hash_result["stato"].nil? && hash_result["stato"] == 'ok'
           jwt_data = JsonWebToken.decode(hash_result['token'])
+          debug_message("jwt data received", 1)
+          debug_message(jwt_data, 1)
           session[:user] = jwt_data #uso questo oggetto per capire se utente connesso!
           session[:cf] = jwt_data[:cf]
           @nome = jwt_data[:nome] 
           @cognome = jwt_data[:cognome]
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
-          solo_dom = @dominio.gsub("/portal","")
+          solo_dom = @dominio.gsub(/\/portal(\/?)\Z/,"")
           session[:url_stampa] = "#{solo_dom}/openweb/_ici/imutasi_stampa.php"
-          if !jwt_data[:numero_anni].nil? && jwt_data[:numero_anni] != "" && jwt_data[:numero_anni] > 0 
-            session[:numero_anni] = jwt_data[:numero_anni]
-          else
-            session[:numero_anni] = @numero_anni_default
-          end
-          @numero_anni = session[:numero_anni]
+
+          session[:anni_situazione] = value_or_default(jwt_data[:api_next][:anni_situazione], @anni_situazione_default).to_i
+          session[:anni_versamenti] = value_or_default(jwt_data[:api_next][:anni_versamenti], @anni_versamenti_default).to_i
+          session[:anni_pagamenti] = value_or_default(jwt_data[:api_next][:anni_pagamenti], @anni_pagamenti_default).to_i
+          session[:tipologia_versamenti] = value_or_default(jwt_data[:api_next][:tipologia_versamenti], @tipologia_versamenti_default)
+          session[:mostra_violazioni] = value_or_default(jwt_data[:api_next][:mostra_violazioni], @mostra_violazioni_default)
+
+          @anni_situazione = session[:anni_situazione]
+          @anni_versamenti = session[:anni_versamenti]
+          @anni_pagamenti = session[:anni_pagamenti]
+          @tipologia_versamenti = session[:tipologia_versamenti]
+          @mostra_violazioni = session[:mostra_violazioni]
+
+          debug_message("session[:mostra_violazioni]", 1)
+          debug_message(session[:mostra_violazioni], 1)
+          debug_message("session[:tipologia_versamenti]", 1)
+          debug_message(session[:tipologia_versamenti], 1)
+
         else
           #se ho problemi ritorno su portale con parametro di errore
           unless @dominio.blank?
@@ -182,6 +204,8 @@ class ApplicationController < ActionController::Base
     :body => params.to_json,
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json'  } )
 
+    
+
     if !result["result"].nil? && result["result"].length > 0
       session[:token] = result["result"]["token"]
     end
@@ -190,11 +214,15 @@ class ApplicationController < ActionController::Base
   end  
   
   def soggetto
+    debug_message("soggetto",1)
     params[:data][:tipoRicerca] = "RicercaPerCodiceFiscale"
     params[:data][:codiceFiscale] = session[:cf]
+    debug_message(params,1)
     result = HTTParty.get("#{@@api_url}soggetti/GetSoggettiTributi?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
-    :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )    
+    :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" },
+    :debug_output => @@log_to_output && @@log_level>2 ? $stdout : nil )    
     
+    debug_message(result,1)
     if !result["result"].nil? && result["result"].length > 0
       session[:identificativoSoggetto] = result["result"]["identificativoSoggetto"]
       session[:cognome] = result["result"]["cognome"].strip
@@ -204,6 +232,7 @@ class ApplicationController < ActionController::Base
     render :json => result    
   end
   
+  #BOOKMARK immobili tari
   def tari_immobili
     params[:data][:tipoRicerca] = "RicercaPerSoggetto"
     params[:data][:identificativoSoggetto] = session[:identificativoSoggetto]
@@ -238,8 +267,8 @@ class ApplicationController < ActionController::Base
         else
           datiImmobile['indirizzo'] = ""
         end
-        if !value['listaImmobile'].nil? && value['listaImmobile'].length > 0
-          datiImmobile['catasto'] = "#{value['listaImmobile'][0]['foglio']}/#{value['listaImmobile'][0]['numero']}/#{value['listaImmobile'][0]['subalterno']}"
+        if !value['listaImmobile'].nil? && value['listaImmobile'].length > 0 && !value["listaImmobile"][0]["foglio"].nil? && !value["listaImmobile"][0]["foglio"].blank?
+          datiImmobile['catasto'] = "#{value["listaImmobile"][0]["foglio"]}/#{value["listaImmobile"][0]["numero"]}/#{value["listaImmobile"][0]["subalterno"]}";
         else
           datiImmobile['catasto'] = ""
         end
@@ -259,12 +288,13 @@ class ApplicationController < ActionController::Base
     render :json => tabellaTasi    
   end
   
+  # BOOKMARK pagamenti tari
   def tari_pagamenti
 #     params[:data][:idSoggetto] = session[:identificativoSoggetto]
       
     tabellaTasi = []
     
-    for anno in (Date.current.year-3)..Date.current.year do
+    for anno in (Date.current.year-session[:anni_pagamenti])..Date.current.year do
       result = HTTParty.get("#{@@api_url}avvisiPagamento/GetAvvisiPagamento?v=1.0&request[idSoggetto]=#{session[:identificativoSoggetto]}&request[anno]=#{anno}", 
       :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
       
@@ -321,13 +351,15 @@ class ApplicationController < ActionController::Base
     render :json => tabellaTasi    
   end
   
+  #BOOKMARK immobili imutasi
   def imutasi_immobili
     params[:data][:tipoRicerca] = "RicercaPerSoggetto"
     params[:data][:identificativoSoggetto] = session[:identificativoSoggetto]
     result = HTTParty.get("#{@@api_url}titolarita/GetTitolarita?v=1.0&#{params[:data].to_unsafe_h.to_query}", 
     :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
     
-    subCaratteristiche = ['','abitazione principale', 'pertinenza', 'rurale', 'bene merce']
+    caratteristiche = ['','Terreno', 'Area edificabile', 'Fabbricato', 'Fabbricato a valore contabile']
+    subCaratteristiche = ['','Abitazione principale', 'Pertinenza', 'Rurale', 'Bene merce']
     
     tabellaImu = []
     tabellaTasi = []
@@ -346,6 +378,10 @@ class ApplicationController < ActionController::Base
           stringavalidita = "dal #{formatted_date_start} al #{formatted_date_end}"
         end
         
+        caratteristica = ""
+        if !value["caratteristicaTitolarita"].nil?
+          caratteristica = caratteristiche[value["caratteristicaTitolarita"]]
+        end
         subCaratteristica = ""
         if !value["subCaratteristica"].nil?
           subCaratteristica = subCaratteristiche[value["subCaratteristica"]]
@@ -357,13 +393,25 @@ class ApplicationController < ActionController::Base
         elsif !value["listaImmobileTributi"][0]["unitaAbitativa"].nil? && !value["listaImmobileTributi"][0]["unitaAbitativa"].blank?
           indirizzo = "#{value["listaImmobileTributi"][0]["unitaAbitativa"]["numeroCivicoEsterno"]["strada"]["toponimo"]["descrizione"]} #{value["listaImmobileTributi"][0]["unitaAbitativa"]["numeroCivicoEsterno"]["strada"]["denominazione"]} #{value["listaImmobileTributi"][0]["unitaAbitativa"]["numeroCivicoEsterno"]["numero"]}"
         end
+
+        catasto = caratteristica
+        if value["listaImmobileTributi"][0]["foglio"]
+          catasto = "#{catasto}<br>" if !value["caratteristicaTitolarita"].nil?
+          catasto = "#{catasto}#{value["listaImmobileTributi"][0]["foglio"]}/#{value["listaImmobileTributi"][0]["numero"]}/#{value["listaImmobileTributi"][0]["subalterno"]}";
+        end
+
+        categoria = subCaratteristica
+        if !value["categoriaCatastale"].nil?
+          categoria = "#{categoria}<br>" if !value["subCaratteristica"].nil?
+          categoria = "#{categoria}#{value["categoriaCatastale"]["codice"]}";
+        end
           
         datiImmobile = { 
           "rendita": value["rendita"], 
           "validita": stringavalidita,
-          "categoria": !value["categoriaCatastale"].nil? ? value["categoriaCatastale"]["codice"] : '',
-          "aliquota": !value["aliquota"].nil? ? value["aliquota"]["descrizione"] : "#{subCaratteristica}",
-          "catasto": "#{value["listaImmobileTributi"][0]["foglio"]}/#{value["listaImmobileTributi"][0]["numero"]}/#{value["listaImmobileTributi"][0]["subalterno"]}",
+          "categoria": categoria,
+          "aliquota": !value["aliquota"].nil? ? value["aliquota"]["descrizione"] : "",
+          "catasto": catasto,
           "indirizzo": indirizzo
         }
         if !value["tipoTitolarita"].nil? && value["tipoTitolarita"].length > 0     
@@ -397,6 +445,7 @@ class ApplicationController < ActionController::Base
     render :json => {"imu": tabellaImu, "tasi": tabellaTasi}
   end
   
+  #BOOKMARK versamenti
   def versamenti
     tabellaImu = [] 
     counterVersamenti = 1
@@ -432,54 +481,65 @@ class ApplicationController < ActionController::Base
     #   end
     # end
     
-    for anno in 2012..Date.current.year do
+    for anno in (Date.current.year-session[:anni_versamenti])..Date.current.year do
       # serve davvero farlo una volta per imposta? verificare con dati reali
 #       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}&imposta=IciImu", 
 #       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}",
       result = HTTParty.get("#{@@api_url}versamentiTributi/GetVersamenti?v=1.0&idSoggetto=#{session[:identificativoSoggetto]}&annoRiferimento=#{anno}",
-      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
+      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" },
+      :debug_output => @@log_to_output && @@log_level>2 ? $stdout : nil )  
     
       #if result.is_a?(Array) && !result["result"].nil? && result["result"].length > 0
       if !result["result"].nil? && result["result"].length > 0
         result["result"].each do |value|
-          tabellaImu << {
-            "id": "getVersamenti"+counterVersamenti.to_s,
-            "imposta": labels[value["modulo"]],
-            "dataVersamento": value["dataPagamento"],
-            "annoRiferimento": value["anno"],
-            # "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario" ,
-            "tipo": "GetVersamenti",
-            "codiceTributo": value["codiceTributoF24"].gsub(/[^0-9]/,""),
-            "rata": value["rata"].blank? ? value["dettaglioRata"] : value["rata"],
-            "detrazione": value["importoDetrazione"],
-            "totale": value["importo"],
-            "ravvedimento": value["rrOo"],
-	          "violazione": value["violazione"]
-          }
-          counterVersamenti = counterVersamenti+1
+          rata = value["rata"].blank? ? value["dettaglioRata"] : value["rata"]
+          rata = "" if rata.to_s == "0"
+          if session[:mostra_violazioni] || (!session[:mostra_violazioni] && !value["violazione"])
+            tabellaImu << {
+              "id": "getVersamenti"+counterVersamenti.to_s,
+              "imposta": labels[value["modulo"]],
+              "dataVersamento": value["dataPagamento"],
+              "annoRiferimento": value["anno"],
+              # "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario" ,
+              "tipo": "GetVersamenti",
+              "codiceTributo": value["codiceTributoF24"].gsub(/[^0-9]/,""),
+              "rata": rata,
+              "detrazione": value["importoDetrazione"],
+              "totale": value["importo"],
+              "ravvedimento": value["rrOo"],
+              "violazione": value["violazione"]
+            }
+            counterVersamenti = counterVersamenti+1
+          end
         end
       end
       
-      result2 = HTTParty.get("#{@@api_url}versamentiMultiCanale/GetVersamentiMultiCanale?v=1.0&codiceFiscale=#{session[:cf]}&annoRiferimento=#{anno}&tipologia=Non_Travasati", 
-      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } )  
+      result2 = HTTParty.get("#{@@api_url}versamentiMultiCanale/GetVersamentiMultiCanale?v=1.0&codiceFiscale=#{session[:cf]}&annoRiferimento=#{anno}&tipologia=#{session[:tipologia_versamenti]}", 
+      :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" },
+      :debug_output => @@log_to_output && @@log_level>2 ? $stdout : nil )  
     
       if !result2["result"].nil? && result2["result"].length > 0
         result2["result"].each do |value|
-          tabellaImu << {
-            "id": "getVersamentiMulticanale"+counterVersamenti.to_s,
-            "imposta": labels[value["desImposta"]],
-            "dataVersamento": value["dataPagamento"],
-            "annoRiferimento": value["anno"].to_s.strip.to_i,
-            # "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario",
-            "tipo": "GetVersamentiMultiCanale",
-            "codiceTributo": value["codiceTributo"].gsub(/[^0-9]/,""),
-            "rata": value["rata"],
-            "detrazione": 0,
-            "totale": value["importo"],
-            "ravvedimento": value["ravvedimento"],
-            "violazione": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione"
-          }
-          counterVersamenti = counterVersamenti+1
+          rata = value["rata"]
+          rata = "" if rata.to_s == "0"
+          violazione = value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione"
+          if session[:mostra_violazioni] || (!session[:mostra_violazioni] && !violazione)
+            tabellaImu << {
+              "id": "getVersamentiMulticanale"+counterVersamenti.to_s,
+              "imposta": labels[value["desImposta"]],
+              "dataVersamento": value["dataPagamento"],
+              "annoRiferimento": value["anno"].to_s.strip.to_i,
+              # "tipo": value["tipoVersamento"].to_s=="2" || value["tipoVersamento"].to_s=="Violazione" ? "Violazione" : "Ordinario",
+              "tipo": "GetVersamentiMultiCanale",
+              "codiceTributo": value["codiceTributo"].gsub(/[^0-9]/,""),
+              "rata": rata,
+              "detrazione": 0,
+              "totale": value["importo"],
+              "ravvedimento": value["ravvedimento"],
+              "violazione": violazione
+            }
+            counterVersamenti = counterVersamenti+1
+          end
         end
       end            
       
@@ -489,7 +549,8 @@ class ApplicationController < ActionController::Base
     
     render :json => tabellaImu    
   end
-   
+  
+  # BOOKMARK pagamenti
   def imutasi_pagamenti
     params[:data][:idSoggetto] = session[:identificativoSoggetto]
     
@@ -517,7 +578,7 @@ class ApplicationController < ActionController::Base
     
     log = ""
     
-    for anno in (Date.current.year-session[:numero_anni])..Date.current.year do
+    for anno in (Date.current.year-session[:anni_pagamenti])..Date.current.year do
       #serve una per anno, perchè senò si sovrascrivono i valori      
       strutturaF24 = {"Acconto"=>{"totale"=>0,"totaleRavv"=>0,"det"=>0,"num"=>0},"Saldo"=>{"totale"=>0,"totaleRavv"=>0,"det"=>0,"num"=>0},"Unica"=>{"totale"=>0,"totaleRavv"=>0,"det"=>0,"num"=>0}}
       codiciTributo.each do |codice, stringaTributo| 
@@ -757,6 +818,34 @@ class ApplicationController < ActionController::Base
   def string_to_float(number)
     float = number.gsub(".","").gsub(",",".").to_f    
     return (float*100).round / 100.0
+  end
+
+  def debug_message(message, level)
+    # puts "debug_message called for message #{message} and level #{level} @@log_level #{@@log_level} @@log_to_file #{@@log_to_file}"
+    if level <= @@log_level
+      logger.debug message unless !@@log_to_file
+      puts message unless !@@log_to_output
+    end
+  end
+
+  def value_or_default(var, default)
+    value = default
+    debug_message("value_or_default for var",1)
+    debug_message(var,1)
+    debug_message(var.nil?,1)
+    debug_message(var.blank?,1)
+    debug_message(var.to_s,1)
+    debug_message(var.to_i,1)
+    if !var.nil? && !var.blank? && var.to_s != ""
+      if(var == "true") 
+        value = true
+      elsif(var == "false")
+        value = false
+      else
+        value = var
+      end
+    end
+    return value
   end
 
 end

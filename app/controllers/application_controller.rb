@@ -300,7 +300,7 @@ class ApplicationController < ActionController::Base
       
       if !result["result"].nil? && result["result"].length > 0
         result["result"].each do |value|
-          if (value['dataAnnullamento'].blank?) && value["importoResiduo"].gsub(',', '.').to_f>0 && value["statoEmissione"] == "Emesso - Validato"
+          if (value['dataAnnullamento'].blank?) && value["importoResiduo"].gsub(',', '.').to_f>0 && ( value["statoEmissione"] == "Emesso - Validato" || value["statoEmissione"] == "Validato" )
             statoPagamenti = stato_pagamento("#{session[:dominio].gsub("https","http")}/servizi/pagamenti/ws/stato_pagamenti",value["idAvviso"])
 #             statoPagamento = stato_pagamento(value["idAvviso"])
             # Pagato - Pendente - Da Ricaricare - In Attesa RT - Annullato - Non Eseguito - Decorrenza termini - Eliminato d'Ufficio, Avviato

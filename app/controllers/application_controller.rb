@@ -248,7 +248,40 @@ class ApplicationController < ActionController::Base
         
         isDomestica = !value['domestica'].nil? && value['domestica']=="Si"
         domestica = isDomestica ? "Domestica":"Non domestica"
-        componenti = isDomestica ? " - #{value["listaNucleoFam"][0]["numeroComponenti"]} componenti dal #{value["listaNucleoFam"][0]["datainizio"]}":""
+        listaNucleoFamCorrenti = []
+        listaNucleoFamPrecenti = []
+        debug_message("params[:data][:anno]",3)
+        debug_message(params[:data][:anno],3)
+        value["listaNucleoFam"].each do |nucleoFam|
+          debug_message("nucleoFam",3)
+          debug_message(nucleoFam,3)
+          if nucleoFam["datainizio"].to_s.include? params[:data][:anno].to_s
+            debug_message("anno is right!",3)
+            listaNucleoFamCorrenti << nucleoFam
+          end
+        end
+        value["listaNucleoFam"].each do |nucleoFam|
+          debug_message("nucleoFam",3)
+          debug_message(nucleoFam,3)
+          if nucleoFam["datainizio"].to_s.last(4).to_i < params[:data][:anno].to_i
+            listaNucleoFamPrecenti << nucleoFam
+          end
+        end
+        debug_message("listaNucleoFamCorrenti",3)
+        debug_message(listaNucleoFamCorrenti,3)
+        debug_message("listaNucleoFamPrecenti",3)
+        debug_message(listaNucleoFamPrecenti,3)
+        componenti = ""
+        if isDomestica
+          if listaNucleoFamCorrenti.length() > 0
+            listaNucleoFamCorrenti.each do |nucleoFam|
+              componenti += " - #{nucleoFam["numeroComponenti"]} componenti dal #{nucleoFam["datainizio"]}"
+            end
+          end
+          if listaNucleoFamCorrenti.length() < 2 && listaNucleoFamPrecenti.length() > 0
+            componenti += " - #{listaNucleoFamPrecenti[listaNucleoFamPrecenti.length()-1]["numeroComponenti"]} componenti dal #{listaNucleoFamPrecenti[listaNucleoFamPrecenti.length()-1]["datainizio"]}"
+          end
+        end
         date_start = DateTime.parse(value["dataInizio"])
         formatted_date_start = date_start.strftime('%d/%m/%Y')
         formatted_date_end = ""

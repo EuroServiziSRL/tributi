@@ -486,6 +486,7 @@ class ApplicationController < ActionController::Base
     labels = { 
       'Ici-Imu' => 'IMU',
       'Tasi' => 'TASI',
+      'Tares-Tari' => 'TARI',
       'Imposta Municipale Propria' => 'IMU',
       'Tributo Servizi Indivisibili' => 'TASI',
       'Tassa Rifiuti' => 'TARI'

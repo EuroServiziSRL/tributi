@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   get 'error_dati' => "application#error_dati", :as => :error_dati
   
   get '/' => 'application#index', :as => :index
+  get '/sw.js' => 'application#ignore', :as => :ignore
   post 'api_call' => 'application#api_call', :as => :api_call
   get 'api_post' => 'application#api_post', :as => :api_post
   get 'api_get' => 'application#api_get', :as => :api_get

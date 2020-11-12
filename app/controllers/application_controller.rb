@@ -10,6 +10,9 @@ class ApplicationController < ActionController::Base
   @@log_level = 3
   @@log_to_output = true
   @@log_to_file = false
+
+  def ignore
+  end
   
   #ROOT della main_app
   def index
@@ -70,7 +73,8 @@ class ApplicationController < ActionController::Base
           jwt_data = JsonWebToken.decode(hash_result['token'])
           debug_message("jwt data received", 1)
           debug_message(jwt_data, 1)
-          session[:user] = jwt_data #uso questo oggetto per capire se utente connesso!
+          session[:user] = {} #uso questo oggetto per capire se utente connesso!
+          session[:user][:api_next] = jwt_data[:api_next]
           session[:cf] = jwt_data[:cf]
           @nome = jwt_data[:nome] 
           @cognome = jwt_data[:cognome]

@@ -304,8 +304,15 @@ class ApplicationController < ActionController::Base
         else
           datiImmobile['indirizzo'] = ""
         end
-        if !value['listaImmobile'].nil? && value['listaImmobile'].length > 0 && !value["listaImmobile"][0]["foglio"].nil? && !value["listaImmobile"][0]["foglio"].blank?
-          datiImmobile['catasto'] = "#{value["listaImmobile"][0]["foglio"]}/#{value["listaImmobile"][0]["numero"]}/#{value["listaImmobile"][0]["subalterno"]}";
+        if !value['listaImmobile'].nil? && value['listaImmobile'].length > 0 
+          if !value["listaImmobile"][0]["foglio"].nil? && !value["listaImmobile"][0]["foglio"].blank?
+            datiImmobile['catasto'] = "#{value["listaImmobile"][0]["foglio"]}/#{value["listaImmobile"][0]["numero"]}/#{value["listaImmobile"][0]["subalterno"]}";
+          else
+            datiImmobile['catasto'] = ""
+          end
+          if datiImmobile['indirizzo'] == "" && !value["listaImmobile"][0]["indirizzo"].nil? && !value["listaImmobile"][0]["indirizzo"].blank?
+            datiImmobile['indirizzo'] = value["listaImmobile"][0]["indirizzo"]
+          end
         else
           datiImmobile['catasto'] = ""
         end

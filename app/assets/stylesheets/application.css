@@ -45,3 +45,12 @@ body {
     text-align: right;
   }
 }
+
+ul.elencoRate {
+  padding-left: 16px;
+  font-size: 12px;
+}
+ul.elencoRate li::before {
+  content: "\2022";
+  margin-right: 6px;
+}

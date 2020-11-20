@@ -116,7 +116,7 @@ class AppTributi extends React.Component{
         { dataField: "validita", text: "Validità" },
       ],
       pagamenti: [
-        { dataField: "descrizioneAvviso", text: "Descrizione avviso" },
+        { dataField: "descrizioneAvviso", text: "Descrizione avviso", formatter: htmlFormatter },
         { dataField: "importoEmesso", text: "Importo emesso", formatter: numberFormatter },
         { dataField: "importoPagato", text: "Importo pagato", formatter: numberFormatter },
         { dataField: "importoResiduo", text: "Importo da pagare", formatter: numberFormatter },

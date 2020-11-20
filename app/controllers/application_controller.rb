@@ -351,6 +351,20 @@ class ApplicationController < ActionController::Base
             if(!statoPagamenti.nil? && statoPagamenti["esito"]=="ok" && (statoPagamenti["esito"][0]["stato"]=="Pagato"))
               # pagamento ok, non lo mettiamo in lista
             else
+              dettagliRata = HTTParty.get("#{@@api_url}avvisiPagamento/GetDettaglioRate?v=1.0&idAvvisoPagamento=#{value["idAvviso"]}&idCodiceTributoF24=25&anno=#{anno}", 
+              :headers => { 'Content-Type' => 'application/json','Accept' => 'application/json', 'Authorization' => "bearer #{session[:token]}" } ) 
+              stringaPagamenti = ""
+              if !dettagliRata["result"].nil? && dettagliRata["result"].length > 0
+                stringaPagamenti = '<ul class="elencoRate">'
+                dettagliRata["result"].each do |dettaglioRata|
+                  if dettaglioRata["codiceRataF24"] != "0101"
+                    stringaPagamenti += "<li>Tributo #{dettaglioRata["codiceTributoF24"]} - rata #{dettaglioRata["codiceRataF24"]} - anno #{anno} - importo &euro;#{dettaglioRata["importo"]} - scadenza #{dettaglioRata["dataScadenza"]}</li>"
+                  end
+                end
+                stringaPagamenti += "</ul>"
+              end
+              puts stringaPagamenti
+
               date = DateTime.parse(value["dataAvviso"])
               formatted_date = date.strftime('%d/%m/%Y')
               
@@ -385,7 +399,7 @@ class ApplicationController < ActionController::Base
                 azioni = "#{session[:dominio]}/servizi/pagamenti/aggiungi_pagamento_pagopa?#{queryString}"
               end
               queryString = "#{queryString}&hqs=#{hqs}"
-              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": azioni}
+              tabellaTasi << {"descrizioneAvviso": "#{value["codiceAvvisoDescrizione"]} - n.#{value["numeroAvviso"]} del #{formatted_date} #{stringaPagamenti}", "importoEmesso": value["importoTotale"], "importoPagato": value["importoVersato"], "importoResiduo": value["importoResiduo"], "azioni": azioni}
             end
           end
         end

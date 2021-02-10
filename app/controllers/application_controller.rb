@@ -81,7 +81,7 @@ class ApplicationController < ActionController::Base
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
           solo_dom = @dominio.gsub(/\/portal(\/?)\Z/,"")
-          session[:url_stampa] = "#{solo_dom}/openweb/_ici/imutasi_stampa.php"
+          session[:get_belfiore_url] = "#{solo_dom}/openweb/portal/api/getCodiceBelfiore.php"
 
           session[:anni_situazione] = value_or_default(jwt_data[:api_next][:anni_situazione], @anni_situazione_default).to_i
           session[:anni_versamenti] = value_or_default(jwt_data[:api_next][:anni_versamenti], @anni_versamenti_default).to_i
@@ -191,7 +191,6 @@ class ApplicationController < ActionController::Base
 #     result = stato_pagamento("#{@dominio.gsub("https","http")}/servizi/pagamenti/ws/stato_pagamenti",3733696)
 #     render :json => result
   end
-
   
   def sconosciuto
   end
@@ -668,8 +667,6 @@ class ApplicationController < ActionController::Base
       results << result
       
       if !result["result"].nil? && result["result"].length > 0   
-        # puts "single result is "    
-        # puts result["result"] 
         
         result["result"].each_with_index do |value, i|
           # puts value
@@ -706,6 +703,8 @@ class ApplicationController < ActionController::Base
 #           }
 #           tabellaImu << datiF24
           if importoNonZero || compensaSaldo
+            puts "single result is "    
+            puts result["result"] 
     
             listaF24[anno] = strutturaF24
             stringaTributo = codiciTributo[value["codiceTributo"]]
@@ -775,14 +774,17 @@ class ApplicationController < ActionController::Base
     end
         
     
+    belfiore_result = HTTParty.get(session[:get_belfiore_url])
+    belfiore = belfiore_result["codice_belfiore"]
     
     listaF24.each do |anno, f24|
       puts "parsing F24"
       puts f24
       data_pagamento = DateTime.parse(params[:data][:dataPagamento])
       data_pagamento = data_pagamento.strftime('%d/%m/%Y')
+      secret = OpenSSL::Digest::SHA1.new("servizisoap.?/XOa[=pyWVGucbJwCsf3LHF3gBTWO06")
 
-      url_stampa = "cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{( params[:data][:modulo]=="Imposta_Immobili" ? "IMU" : "TASI" )}"
+      url_stampa = "belfiore=#{belfiore}&cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{( params[:data][:modulo]=="Imposta_Immobili" ? "IMU" : "TASI" )}"
       
       f24.each do |nomeRata, datiRata|
         numRata = ""
@@ -842,8 +844,9 @@ class ApplicationController < ActionController::Base
             "importoVersato": datiRata["versato"], 
             "totaleImportoDovuto": datiRata["totale"], 
             "numeroImmobili": datiRata["num"], 
+            
 #             "azioni": "<a href='#{session[:url_stampa]}?rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa}'>Stampa</a>"
-            "azioni": "#{session[:url_stampa]}?rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa_rata}"
+            "azioni": "rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa_rata}&idc=#{secret}"
           }
           tabellaImu << datiF24
         
@@ -889,12 +892,12 @@ class ApplicationController < ActionController::Base
 
   def value_or_default(var, default)
     value = default
-    debug_message("value_or_default for var",1)
-    debug_message(var,1)
-    debug_message(var.nil?,1)
-    debug_message(var.blank?,1)
-    debug_message(var.to_s,1)
-    debug_message(var.to_i,1)
+    debug_message("value_or_default for var",3)
+    debug_message(var,3)
+    debug_message(var.nil?,3)
+    debug_message(var.blank?,3)
+    debug_message(var.to_s,3)
+    debug_message(var.to_i,3)
     if !var.nil? && !var.blank? && var.to_s != ""
       if(var == "true") 
         value = true

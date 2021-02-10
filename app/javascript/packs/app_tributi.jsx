@@ -13,9 +13,15 @@ import { faCircleNotch,faCheck } from '@fortawesome/free-solid-svg-icons'
 
 function buttonFormatter(cell,row) {
   var label = "Stampa";
-  if (cell.includes("aggiungi_pagamento_pagopa")) {label = "Paga con PagoPA";}
-  else if(cell.includes("servizi/pagamenti")) { label = "Vai al carrello"; }
-  return  <a href={cell} target="_blank" className="btn btn-primary">{label}</a>;
+  var stampa_f24 = true;
+  if (cell.includes("aggiungi_pagamento_pagopa")) { label = "Paga con PagoPA"; stampa_f24 = false; }
+  else if(cell.includes("servizi/pagamenti")) { label = "Vai al carrello"; stampa_f24 = false; }
+  if(stampa_f24) {
+    // return  <a href="#" onClick={this.openPrint(cell)} className="btn btn-primary stampa-f24">{label}</a>;
+    return  <a href="#" className="btn btn-primary stampa-f24" data-query={cell}>{label}</a>;
+  } else {
+    return  <a href={cell} target="_blank" className="btn btn-primary">{label}</a>;
+  }
 }
 
 function pad(n) {return n < 10 ? "0"+n : n;}
@@ -171,7 +177,9 @@ class AppTributi extends React.Component{
     token:false,
     tari: {},
     imu: {},
-    tasi: {}
+    tasi: {},
+    mostraStampa: false,
+    urlStampa: false
   }
   constructor(props){
     super(props);
@@ -241,6 +249,11 @@ class AppTributi extends React.Component{
         }
         // $backupHeader.appendTo("<table>").insertBefore($("#"+id));
       } else  { console.log("tableToUl is not a function ("+typeof(tableToUl)+") or no css available for responsive tables"); } 
+    });
+
+    $('ul#pagamentiImu').on("click",".stampa-f24", function(e){
+      e.preventDefault();
+      self.openPrint($(this).data("query"));
     });
   }
 
@@ -465,6 +478,20 @@ class AppTributi extends React.Component{
     this.getImmobiliIMUTASI();
   };
   
+  openPrint(url) {
+    var state = this.state;
+    state.mostraStampa = true;
+    state.urlStampa = "http://servizisoap.soluzionipa.it/_ici/tributi_stampa.php?"+url+"&script="+btoa(document.querySelector('script').attributes["src"]["nodeValue"])+"&style="+btoa(document.getElementsByTagName("link")[1]["attributes"]["href"]["nodeValue"]);
+    this.setState(state);
+  }
+  
+  closePrint() {
+    var state = this.state;
+    state.mostraStampa = false;
+    state.urlStampa = false;
+    this.setState(state);
+  }
+  
   render(){
     var options = [];
     
@@ -586,6 +613,26 @@ class AppTributi extends React.Component{
           </div>
         
         </div>
+        {this.state.mostraStampa? 
+        <div className="bootbox modal fade in" id="modal-stampa" role="dialog" style={{display: 'block'}}>
+          <div className="modal-dialog modal-lg" role="dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Stampa F24</h5>
+                {/* <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button> */}
+              </div>
+              <div className="modal-body">
+                <iframe id="iframe-stampa" src={this.state.urlStampa}></iframe>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-primary" onClick={this.closePrint.bind(this)}>Chiudi</button>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade in" onClick={this.closePrint.bind(this)}></div>
+        </div>:<></>}
       </div>     
     }
     
@@ -612,5 +659,5 @@ if(document.getElementById('app_tributi_container') !== null){
     $(".nav-tabs li").removeClass("active");
     $("#"+$(this).data("toggle")).show()
     $(this).parent().addClass("active");
-  })
+  });
 }

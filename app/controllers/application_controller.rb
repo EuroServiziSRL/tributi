@@ -81,7 +81,10 @@ class ApplicationController < ActionController::Base
           session[:client_id] = hash_params['c_id']
           # TODO gestire meglio il dominio
           solo_dom = @dominio.gsub(/\/portal(\/?)\Z/,"")
-          session[:get_belfiore_url] = "#{solo_dom}/openweb/portal/api/getCodiceBelfiore.php"
+          # session[:get_belfiore_url] = "#{solo_dom}/openweb/portal/api/getCodiceBelfiore.php"
+          session[:belfiore] = jwt_data[:codice_belfiore]
+          # debug_message("session[:belfiore]", 1)
+          # debug_message(session[:belfiore], 1)
 
           session[:anni_situazione] = value_or_default(jwt_data[:api_next][:anni_situazione], @anni_situazione_default).to_i
           session[:anni_versamenti] = value_or_default(jwt_data[:api_next][:anni_versamenti], @anni_versamenti_default).to_i
@@ -773,10 +776,6 @@ class ApplicationController < ActionController::Base
       
     end
         
-    
-    belfiore_result = HTTParty.get(session[:get_belfiore_url])
-    belfiore = belfiore_result["codice_belfiore"]
-    
     listaF24.each do |anno, f24|
       puts "parsing F24"
       puts f24
@@ -784,7 +783,7 @@ class ApplicationController < ActionController::Base
       data_pagamento = data_pagamento.strftime('%d/%m/%Y')
       secret = OpenSSL::Digest::SHA1.new("servizisoap.?/XOa[=pyWVGucbJwCsf3LHF3gBTWO06")
 
-      url_stampa = "belfiore=#{belfiore}&cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{( params[:data][:modulo]=="Imposta_Immobili" ? "IMU" : "TASI" )}"
+      url_stampa = "belfiore=#{session[:belfiore]}&cognome=#{session[:cognome]}&nome=#{session[:nome]}&appTributi=true&cf=#{session[:cf]}&anno=#{anno}&stampaImposta=#{( params[:data][:modulo]=="Imposta_Immobili" ? "IMU" : "TASI" )}"
       
       f24.each do |nomeRata, datiRata|
         numRata = ""

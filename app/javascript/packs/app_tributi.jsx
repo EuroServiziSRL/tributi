@@ -481,7 +481,7 @@ class AppTributi extends React.Component{
   openPrint(url) {
     var state = this.state;
     state.mostraStampa = true;
-    state.urlStampa = "http://servizisoap.soluzionipa.it/_ici/tributi_stampa.php?"+url+"&script="+btoa(document.querySelector('script').attributes["src"]["nodeValue"])+"&style="+btoa(document.getElementsByTagName("link")[1]["attributes"]["href"]["nodeValue"]);
+    state.urlStampa = "https://servizisoap.soluzionipa.it/_ici/tributi_stampa.php?"+url+"&script="+btoa(document.querySelector('script').attributes["src"]["nodeValue"])+"&style="+btoa(document.getElementsByTagName("link")[1]["attributes"]["href"]["nodeValue"]);
     this.setState(state);
   }
   

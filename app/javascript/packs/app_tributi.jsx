@@ -251,7 +251,7 @@ class AppTributi extends React.Component{
       } else  { console.log("tableToUl is not a function ("+typeof(tableToUl)+") or no css available for responsive tables"); } 
     });
 
-    $('ul#pagamentiImu').on("click",".stampa-f24", function(e){
+    $('ul#pagamentiImu, ul#pagamentiTasi').on("click",".stampa-f24", function(e){
       e.preventDefault();
       self.openPrint($(this).data("query"));
     });

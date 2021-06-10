@@ -832,23 +832,25 @@ class ApplicationController < ActionController::Base
         
       end
       
-      f24.each do |nomeRata, datiRata|       
-        if nomeRata == "Acconto" || nomeRata == "Saldo"
-          url_stampa_rata = url_stampa+"&totale=#{f24[nomeRata]['totale']}&det=#{f24[nomeRata]["det"]}&num=#{f24[nomeRata]["num"]}"
-          
-          datiF24 = { 
-            "anno": anno, 
-            "rata": nomeRata, 
-            "importoDovuto": datiRata["dovutoPre"],
-            "importoVersato": datiRata["versato"], 
-            "totaleImportoDovuto": datiRata["totale"], 
-            "numeroImmobili": datiRata["num"], 
+      f24.each do |nomeRata, datiRata|   
+        if datiRata["totale"] > 0   
+          if nomeRata == "Acconto" || nomeRata == "Saldo"
+            url_stampa_rata = url_stampa+"&totale=#{f24[nomeRata]['totale']}&det=#{f24[nomeRata]["det"]}&num=#{f24[nomeRata]["num"]}"
             
-#             "azioni": "<a href='#{session[:url_stampa]}?rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa}'>Stampa</a>"
-            "azioni": "rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa_rata}&idc=#{secret}"
-          }
-          tabellaImu << datiF24
-        
+            datiF24 = { 
+              "anno": anno, 
+              "rata": nomeRata, 
+              "importoDovuto": datiRata["dovutoPre"],
+              "importoVersato": datiRata["versato"], 
+              "totaleImportoDovuto": datiRata["totale"], 
+              "numeroImmobili": datiRata["num"], 
+              
+  #             "azioni": "<a href='#{session[:url_stampa]}?rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa}'>Stampa</a>"
+              "azioni": "rata=#{nomeRata.downcase}&#{nomeRata.downcase}=true&#{url_stampa_rata}&idc=#{secret}"
+            }
+            tabellaImu << datiF24
+          
+          end
         end
         
       end

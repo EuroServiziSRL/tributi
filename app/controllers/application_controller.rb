@@ -8,7 +8,7 @@ class ApplicationController < ActionController::Base
   @@api_resource = "https://api.civilianext.it"
   @@api_url = "#{@@api_resource}/Tributi/api/"
   @@log_level = 3
-  @@log_to_output = true
+  @@log_to_output = false
   @@log_to_file = false
 
   def ignore
